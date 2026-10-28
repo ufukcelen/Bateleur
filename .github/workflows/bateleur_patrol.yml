@@ -1,0 +1,48 @@
+name: 🦅 Bateleur Hourly Patrol
+
+on:
+  schedule:
+    # Her saat başı otomatik çalışır (00:00, 01:00, 02:00...)
+    - cron: '0 * * * *'
+  workflow_dispatch: # İstenildiği an 'Run workflow' ile elle tetikleme
+
+permissions:
+  contents: write
+
+jobs:
+  patrol:
+    name: Yorum Moderasyonu ve Delil Taraması
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Kodu Getir
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python 3.11 Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Bağımlılıkları Yükle
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🦅 Bateleur Taramasını Başlat
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YOUTUBE_CHANNELS: ${{ secrets.YOUTUBE_CHANNELS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          USE_LOCAL_DB: "true"
+        run: |
+          python main.py
+
+      - name: 💾 İşlenmiş Yorumları Senkronize Et
+        run: |
+          git config --global user.name "Bateleur Cloud Bot"
+          git config --global user.email "bot@bateleur.internal"
+          git add processed_comments.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update processed comments [skip ci]" && git push)
