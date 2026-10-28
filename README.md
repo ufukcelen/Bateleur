@@ -1,113 +1,124 @@
-# 🦅 Bateleur (YouTube Hakaret Tespit ve Adli Delil Sistemi)
+# 🦅 Bateleur (v0.0.2)
 
-Tamamen **Google Cloud** üzerinde, **%100 ücretsiz kotalarla** çalışan; kendi YouTube kanalınızın videolarına gelen yeni yorumları otomatik okuyan, **Google Gemini AI** ile hakaret/küfür tespiti yapan ve Telegram üzerinden anlık bildirim gönderen bulut tabanlı bir sistemdir.
+> **YouTube İçerik Üreticileri ve Ekipleri İçin Yapay Zeka Destekli Hakaret Tespit ve Adli Delil Toplama Sistemi**
+
+[![Version](https://img.shields.io/badge/version-0.0.2-blue.svg)](https://github.com/ufukcelen/Bateleur)
+[![Python](https://img.shields.io/badge/python-3.11-brightgreen.svg)](https://www.python.org/)
+[![AI Engine](https://img.shields.io/badge/AI-Google%20Gemini%20Flash-orange.svg)](https://aistudio.google.com/)
+[![Platform](https://img.shields.io/badge/cloud-GitHub%20Actions%20Cron-black.svg)](https://github.com/features/actions)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+---
+
+## 📖 Bateleur Nedir?
+
+Adını gökyüzünde kesintisiz devriye gezen ve hedefini gözden kaçırmayan efsanevi Cambaz Kartalı'ndan alan **Bateleur**; YouTube kanallarının videolarına ve Shorts içeriklerine gelen yorumları 7/24 otomatik denetleyen, argo/kinaye ve küfürleri **Google Gemini AI** ile bağlamsal olarak analiz eden ve tespit edilen hakaretleri **savcılık ve adli makamlar için resmi dijital delil tutanağına** dönüştüren bulut tabanlı bir siber moderasyon sistemidir.
+
+Tamamen **sunucusuz (serverless)** mimaride çalışan Bateleur; kredi kartı, sunucu faturası veya açık bir bilgisayar gerektirmeden arka planda sessizce devriye gezer.
+
+---
+
+## ✨ Temel Özellikler
+
+* 🦅 **Çoklu Kanal Desteği:** Tek bir kurulumla birden fazla YouTube kanalını (ör. `@uykusuztosba`, `@radiomocas`) eş zamanlı takip eder.
+* ⏱️ **Saatlik Akıllı Devriye:** Her saat başı kanalların en son 3 içeriğini (Video/Shorts/Canlı Yayın) otomatik inceler.
+* 🧠 **Gelişmiş AI Moderasyonu (Gemini):**
+  * **Hedef Ayrımı:** Videodaki konuklara, futbolculara, takımlara veya hakemlere yönelik genel eleştirileri/sitemleri temiz sayar; **yalnızca kanal sahibine ve ekibine yönelik şahsi saldırıları** yakalar.
+  * **Tolerans Eşiği:** Hafif alay ve günlük argoları tolere eder; yalnızca ağır şahsi küfür ve tehditleri bildirir.
+* ⚖️ **Adli Delil Toplama (TCK Madde 125 Uyumlu):**
+  * Şahsın güncel **profil fotoğrafını** çeker.
+  * Kullanıcı adını değiştirse bile emniyet ve savcılığın IP tespiti için kullandığı **Kalıcı YouTube Kanal ID'sini (`UC...`)** kayda alır.
+  * Yorumun doğrudan kalıcı linkini (`&lc=...`) ve kesin UTC/TSİ zaman damgasını belgeler.
+  * Savcılık dosyasına eklenebilecek standartta tek sayfalık **HTML Dijital Delil Tutanağı** üretir.
+* 👥 **Telegram Ekip Bildirimi (`Bateleur.app`):** Tespit edilen hakaretler ekip grubuna şahsın profil fotoğrafı, hakaret metni, gerekçesi ve direkt silme/inceleme linkiyle iletilir.
+* 🤫 **Sessiz Çalışma:** Her saat rapor atıp ekibi rahatsız etmez; yalnızca yeni bir hakaret yakalandığında bildirim gönderir.
+* 💾 **Mükerrer Analiz Koruması:** İncelenen yorumlar `processed_comments.json` dosyasında hafızada tutulur; daha önce bakılan bir yorum asla tekrar taranmaz veya raporlanmaz.
+* 📂 **Google Drive Entegrasyonu:** Delil tutanaklarını Google Drive'daki `BateleurFiles` klasörüne otomatik olarak yedekleyebilir.
+* 🆓 **%100 Ücretsiz Bulut Mimarisi:** GitHub Actions üzerinde kart bilgisi veya fatura olmadan 7/24 ömür boyu ücretsiz çalışır.
 
 ---
 
 ## 🏗️ Mimari ve Çalışma Prensibi
 
-1. **Google Cloud Scheduler (Zamanlayıcı):** Her 15 dakikada bir Cloud Function'ı tetikler.
-2. **YouTube Data API v3:** Kanalın son yorumlarını çeker.
-3. **Google Firestore (Veritabanı):** Önceden incelenmiş yorumları hafızada tutarak mükerrer incelemeyi ve kota harcamasını engeller.
-4. **Google Gemini 2.5/1.5 Flash:** Yeni yorumların bağlamını, argo, kinaye ve şahsa yönelik hakaret durumunu Türkçe analiz eder.
-5. **Telegram Bildirimi:** Hakaret tespit edildiğinde yorum sahibini, yorum metnini, şiddet derecesini ve doğrudan yoruma giden linki telefonunuza iletir.
+```
+[GitHub Actions Bulut Cron] (Her saat başı: 0 * * * *)
+            │
+            ▼
+    [Bateleur Engine]
+            │
+            ├──► 1. YouTube Data API v3 ──► Kanalların son 3 içeriğini & yorumları çeker
+            │
+            ├──► 2. Bellek (processed_comments.json) ──► Yeni gelen yorumları filtreler
+            │
+            ├──► 3. Google Gemini 3.5 Flash ──► Hedef ve tolerans kurallarına göre analiz eder
+            │
+            └──► 4. Aksiyon (Yalnızca Hakaret Varsa):
+                      ├─► Hukuki Delil Tutanağı (HTML) oluşturur
+                      ├─► Google Drive (BateleurFiles) klasörüne yedekler
+                      └─► Telegram (Bateleur.app) grubuna fotoğraflı delil kartı iletir
+```
 
 ---
 
-## 🆓 Neden %100 Ücretsiz?
+## 🚀 Manuel Komut: `/check`
 
-| Servis | Ücretsiz Kota Limiti | Bizim Kullanımımız |
-| :--- | :--- | :--- |
-| **Cloud Functions** | Ayda 2.000.000 çağrı | ~2.900 çağrı/ay (her 15 dk bir) |
-| **Cloud Firestore** | Günde 50.000 okuma / 20.000 yazma | Günde ~200 işlem |
-| **Cloud Scheduler** | 3 adet cron işi ömür boyu ücretsiz | 1 adet cron işi |
-| **YouTube Data API** | Günde 10.000 kota birimi | Günde ~100 kota birimi |
-| **Gemini AI API** | Günde 1.500 istek / dakikada 15 istek | Günde ~50 istek |
-| **Telegram Botu** | Sınırsız / Tamamen Ücretsiz | Bildirim başı 1 istek |
+Ekip grubunda herhangi bir üye dilediği an:
+* Telegram grubuna `/check` yazarak veya
+* GitHub Actions sekmesinden **Run workflow** butonuna basarak
+
+kanalları anlık olarak taratabilir. Yeni bir hakaret yoksa bile grup bilgilendirilir.
 
 ---
 
-## ⚙️ 1. Adım: Gerekli API Anahtarlarını Alma
+## 🛠️ Kurulum ve Ortam Değişkenleri
 
-### A. YouTube Data API v3 Anahtarı
-1. [Google Cloud Console](https://console.cloud.google.com/) adresine gidin ve yeni bir proje oluşturun (örn: `yorum-avcisi`).
-2. **APIs & Services > Library** sayfasına girin.
-3. **YouTube Data API v3** servisini aratıp **Enable (Etkinleştir)** butonuna basın.
-4. **APIs & Services > Credentials** sayfasına gelin, **Create Credentials > API Key** seçin.
-5. Oluşan anahtarı kopyalayın (`YOUTUBE_API_KEY`).
+GitHub Deponuzun **Settings > Secrets and variables > Actions** alanında tanımlanan anahtarlar:
 
-### B. YouTube Kanal ID'nizi Bulma
-1. YouTube Studio'ya girin: [studio.youtube.com](https://studio.youtube.com/)
-2. Sol menüden **Ayarlar (Settings) > Kanal (Channel) > Gelişmiş Ayarlar (Advanced Settings)** yolunu izleyin.
-3. Sayfanın en altındaki **Kanal Kimliği (Channel ID)** değerini kopyalayın (`UC...` ile başlar).
-
-### C. Google Gemini API Anahtarı
-1. [Google AI Studio](https://aistudio.google.com/app/apikey) adresine gidin.
-2. Google hesabınızla giriş yapıp **Get API key** butonuna tıklayarak ücretsiz anahtarınızı alın (`GEMINI_API_KEY`).
-
-### D. Telegram Botu (Anlık Mobil Bildirim İçin)
-1. Telegram uygulamasında `@BotFather` kullanıcısını bulun.
-2. `/newbot` komutunu gönderin ve botunuza bir isim verin.
-3. BotFather size bir **HTTP API Token** verecektir (`TELEGRAM_BOT_TOKEN`).
-4. Telefonunuza bildirim gelebilmesi için, yeni oluşturduğunuz bota Telegram'dan `/start` mesajı gönderin.
-5. Telegram Chat ID'nizi öğrenmek için Telegram'da `@userinfobot` botunu başlatın; size `Id` numaranızı verecektir (`TELEGRAM_CHAT_ID`).
+| Değişken Adı | Açıklama |
+| :--- | :--- |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 Erişim Anahtarı |
+| `GEMINI_API_KEY` | Google AI Studio Gemini API Anahtarı |
+| `YOUTUBE_CHANNELS` | Takip edilecek kanallar (örn: `@uykusuztosba,@radiomocas`) |
+| `TELEGRAM_BOT_TOKEN` | `@BotFather` tarafından verilen bot token'ı |
+| `TELEGRAM_CHAT_ID` | Bildirimlerin gideceği `Bateleur.app` grup kimliği |
 
 ---
 
-## 💻 2. Adım: Yerel Ortamda Test Etme
+## 📂 Proje Dizin Yapısı
 
-1. Proje dizininde sanal ortam oluşturup paketleri kurun:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. `.env.example` dosyasını `.env` olarak kopyalayın ve anahtarlarınızı girin:
-   ```bash
-   cp .env.example .env
-   ```
-   *(Yerel test yaparken `USE_LOCAL_DB=true` bırakabilirsiniz, böylece Firestore yerine yerel SQLite veritabanı kullanılır).*
-
-3. Programı çalıştırıp test edin:
-   ```bash
-   python3 main.py
-   ```
+```
+Bateleur/
+├── .github/workflows/
+│   └── bateleur_patrol.yml     # Saatlik bulut zamanlayıcı iş akışı
+├── config.py                   # Proje ayarları ve ortam değişkenleri
+├── youtube_client.py           # YouTube API veri çekme ve profil çıkarıcı
+├── moderator.py                # Gemini AI bağlamsal hakaret analiz motoru
+├── moderation_rules.txt        # Özelleştirilebilir Türkçe moderasyon kuralları
+├── evidence_generator.py       # Resmi Dijital Delil Tespit Tutanağı üretici
+├── notifier.py                 # Telegram HTML/Fotoğraflı bildirim servisi
+├── drive_service.py            # Google Drive (BateleurFiles) yedekleme
+├── database.py                 # JSON tabanlı bellek yöneticisi
+├── processed_comments.json     # Taranmış yorum kimlikleri hafızası
+├── main.py                     # Ana yürütücü orkestrasyon dosyası
+├── requirements.txt            # Python kütüphaneleri
+└── README.md                   # Dokümantasyon
+```
 
 ---
 
-## ☁️ 3. Adım: Tamamen Google Cloud'a Yükleme (Sunucusuz)
+## 📄 Sürüm Geçmişi
 
-İki yöntemle buluta yükleyebilirsiniz:
+* **v0.0.2 (Güncel):**
+  * Bateleur marka kimliği ve logo entegrasyonu.
+  * GitHub Actions ile %100 kredi kartsız sunucusuz saatlik bulut devriyesi.
+  * `Bateleur.app` Telegram grubu ve fotoğraflı adli delil kartları.
+  * TCK 125 uyumlu Kalıcı YouTube Kanal ID ve avatar yakalama desteği.
+  * Google Drive `BateleurFiles` otomatik arşivleme altyapısı.
+* **v0.0.1:**
+  * İlk prototip, YouTube API ve Gemini entegrasyonu.
 
-### Yöntem A: Google Cloud Console Arayüzü Üzerinden (Kodlama/Terminal Gerektirmez)
+---
 
-1. [Google Cloud Console > Cloud Functions](https://console.cloud.google.com/functions) sayfasına gidin.
-2. **Create Function** butonuna tıklayın:
-   - **Environment:** 2nd gen
-   - **Function name:** `youtube-comment-hunter`
-   - **Region:** `europe-west3` (Frankfurt) veya `europe-west1` (Belçika)
-   - **Trigger:** HTTPS
-   - **Runtime:** Python 3.11
-   - **Entry point:** `handle_cloud_function`
-3. Proje dosyalarını (`main.py`, `config.py`, `database.py`, `moderator.py`, `notifier.py`, `youtube_client.py`, `requirements.txt`) tarayıcıdaki kod editörüne yükleyin.
-4. **Environment Variables** bölümüne `.env` içindeki değişkenlerinizi ekleyin (`USE_LOCAL_DB=false`).
-5. **Deploy** butonuna basın.
+## ⚖️ Lisans
 
-### Yöntem B: Cloud Scheduler ile Otomatik Tetikleme Ayarlama
-
-Fonksiyon kurulduktan sonra size bir URL verecektir (ör: `https://europe-west3-...cloudfunctions.net/youtube-comment-hunter`).
-
-1. [Google Cloud Scheduler](https://console.cloud.google.com/cloudscheduler) sayfasına gidin.
-2. **Create Job** butonuna tıklayın:
-   - **Name:** `youtube-comment-cron`
-   - **Region:** Fonksiyonunuzla aynı bölge (örn. `europe-west3`)
-   - **Frequency (Sıklık):** `*/15 * * * *` (Her 15 dakikada bir çalışır)
-   - **Timezone:** Turkey (Europe/Istanbul)
-   - **Target type:** HTTP
-   - **URL:** Cloud Function'ınızın HTTPS tetikleyici URL'si
-   - **HTTP method:** GET veya POST
-3. **Create** butonuna basarak tamamlayın.
-
-Artık sistem 7/24 tamamen arka planda Google Cloud üzerinde çalışacak ve kanalınıza küfür veya hakaret geldiğinde telefonunuza anında bildirim düşecektir!
-
+Bu proje [MIT Lisansı](LICENSE) kapsamında korunmaktadır.
