@@ -1,4 +1,5 @@
 import os
+import html
 import requests
 from typing import Dict, Any
 from config import Config
@@ -52,19 +53,27 @@ class Notifier:
             print("[Notifier] Telegram bilgileri tanımlı olmadığı için mesaj ekibe gönderilemedi.")
             return True
 
-        # Ekip Telegram Grubu için Mesaj Metni
-        drive_line = f"☁️ [Google Drive'da Delili Görüntüle]({drive_link})\n" if drive_link else ""
+        # HTML Güvenli Metin Hazırlığı
+        safe_channel = html.escape(str(channel))
+        safe_video = html.escape(str(video_title[:45]))
+        safe_author = html.escape(str(author))
+        safe_author_id = html.escape(str(author_channel_id))
+        safe_text = html.escape(str(text))
+        safe_explanation = html.escape(str(explanation))
+
+        drive_line = f'☁️ <a href="{drive_link}">Google Drive\'da Delili Görüntüle</a>\n' if drive_link else ""
+
         caption = (
-            f"🚨 *HUKUKİ DELİL TESPİTİ* ({severity})\n\n"
-            f"📺 *Kanal:* `{channel}`\n"
-            f"🎬 *Video:* {video_title[:45]}...\n"
-            f"👤 *Şahıs:* `{author}`\n"
-            f"🆔 *Kalıcı Kanal ID:* `{author_channel_id}`\n\n"
-            f"💬 *Yorum:*\n\"{text}\"\n\n"
-            f"⚖️ *Hukuki Gerekçe:* _{explanation}_\n\n"
-            f"👉 [Yorumu YouTube'da Gör / Sil]({comment_url})\n"
+            f"🚨 <b>HUKUKİ DELİL TESPİTİ</b> (<code>{severity}</code>)\n\n"
+            f"📺 <b>Kanal:</b> <code>{safe_channel}</code>\n"
+            f"🎬 <b>Video:</b> {safe_video}...\n"
+            f"👤 <b>Şahıs:</b> <b>{safe_author}</b>\n"
+            f"🆔 <b>Kalıcı Kanal ID:</b> <code>{safe_author_id}</code>\n\n"
+            f"💬 <b>Yorum:</b>\n<i>\"{safe_text}\"</i>\n\n"
+            f"⚖️ <b>Hukuki Gerekçe:</b> <i>{safe_explanation}</i>\n\n"
+            f"👉 <a href=\"{comment_url}\">Yorumu YouTube'da Gör / Sil</a>\n"
             f"{drive_line}"
-            f"📁 _Delil Dosyası: {os.path.basename(html_file)}_"
+            f"📁 <i>Delil Dosyası: {os.path.basename(html_file)}</i>"
         )
 
         # Şahsın profil fotoğrafı varsa fotoğraflı bildirim gönder
@@ -74,13 +83,15 @@ class Notifier:
                 "chat_id": self.chat_id,
                 "photo": author_img,
                 "caption": caption,
-                "parse_mode": "Markdown"
+                "parse_mode": "HTML"
             }
             try:
                 res = requests.post(photo_url, json=payload, timeout=10)
                 if res.status_code == 200:
                     print(f"[Notifier] Ekip Telegram grubuna fotoğraflı delil bildirimi iletildi ({author}).")
                     return True
+                else:
+                    print(f"[Notifier Fotoğraf Hatası]: {res.status_code} - {res.text}")
             except Exception as e:
                 print(f"[Notifier] Fotoğraf gönderilemedi, metin deneniyor: {e}")
 
@@ -89,7 +100,7 @@ class Notifier:
         payload = {
             "chat_id": self.chat_id,
             "text": caption,
-            "parse_mode": "Markdown",
+            "parse_mode": "HTML",
             "disable_web_page_preview": False
         }
         try:
