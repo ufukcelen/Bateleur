@@ -4,7 +4,7 @@ set -e
 # Google Cloud Function Deploy Betiği
 # Bu betik projeyi Google Cloud Functions (2. Nesil) olarak deploy eder.
 
-FUNCTION_NAME="youtube-comment-hunter"
+FUNCTION_NAME="bateleur"
 REGION="europe-west3" # Frankfurt veya europe-west1 (Belçika)
 RUNTIME="python311"
 ENTRY_POINT="handle_cloud_function"

@@ -16,7 +16,7 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     - is_manual=True ise (/check komutu ile çağrıldıysa) temiz olsa dahi gruba özet bilgi döner.
     """
     print("=" * 60)
-    print("🚀 Yorum Avcısı - Moderasyon Döngüsü Başlatıldı" + (" (MANUEL: /check)" if is_manual else ""))
+    print("🦅 Bateleur - YouTube Moderasyon & Delil Takip Döngüsü" + (" (MANUEL: /check)" if is_manual else ""))
     print(f"🎯 Hedef Kanallar: {', '.join(Config.YOUTUBE_CHANNELS)}")
     print(f"🎬 Kanal Başına Son İçerik: {Config.RECENT_VIDEOS_COUNT}")
     print("=" * 60)

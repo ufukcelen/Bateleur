@@ -7,7 +7,7 @@ from config import Config
 class DriveService:
     """
     Oluşturulan delil tutanaklarını kullanıcının Google Drive'ındaki
-    'YorumHunterFiles' klasörüne otomatik yükler.
+    'BateleurFiles' klasörüne otomatik yükler.
     """
     def __init__(self, credentials_path: str = None):
         self.credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
@@ -16,7 +16,6 @@ class DriveService:
 
     def _init_service(self):
         try:
-            # 1. Ortamda veya GCP'de varsayılan kimlik bilgileri varsa
             if self.credentials_path and os.path.exists(self.credentials_path):
                 from google.oauth2 import service_account
                 creds = service_account.Credentials.from_service_account_file(
@@ -25,31 +24,27 @@ class DriveService:
                 )
                 self.service = build("drive", "v3", credentials=creds)
             else:
-                # GCP Cloud Function üzerinde çalışırken default SA kullanılır
                 import google.auth
                 creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/drive"])
                 self.service = build("drive", "v3", credentials=creds)
         except Exception as e:
-            # Yerel testte henüz Drive hesabı bağlanmadıysa sessizce uyar
             print(f"[Google Drive Başlatma]: Drive kimliği henüz yapılandırılmadı ({e}). Dosyalar yerel olarak 'deliller/' klasöründe saklanıyor.")
             self.service = None
 
-    def get_or_create_folder(self, folder_name: str = "YorumHunterFiles") -> Optional[str]:
+    def get_or_create_folder(self, folder_name: str = "BateleurFiles") -> Optional[str]:
         """
-        'YorumHunterFiles' klasörünü bulur, yoksa otomatik oluşturur ve ID'sini döner.
+        'BateleurFiles' klasörünü bulur, yoksa otomatik oluşturur ve ID'sini döner.
         """
         if not self.service:
             return None
 
         try:
-            # Klasör var mı diye ara
             query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
             results = self.service.files().list(q=query, spaces="drive", fields="files(id, name)").execute()
             files = results.get("files", [])
             if files:
                 return files[0]["id"]
 
-            # Yoksa oluştur
             folder_metadata = {
                 "name": folder_name,
                 "mimeType": "application/vnd.google-apps.folder"
@@ -61,7 +56,7 @@ class DriveService:
             print(f"[Google Drive Klasör Hatası]: {e}")
             return None
 
-    def upload_file(self, file_path: str, folder_name: str = "YorumHunterFiles") -> Optional[str]:
+    def upload_file(self, file_path: str, folder_name: str = "BateleurFiles") -> Optional[str]:
         """
         Delil dosyasını Drive'daki ilgili klasöre yükler ve dosya linkini döner.
         """
@@ -90,3 +85,4 @@ class DriveService:
         except Exception as e:
             print(f"[Google Drive Yükleme Hatası]: {e}")
             return None
+

@@ -1,4 +1,4 @@
-# 🎯 Yorum Avcısı (YouTube Hakaret Tespit Sistemi)
+# 🦅 Bateleur (YouTube Hakaret Tespit ve Adli Delil Sistemi)
 
 Tamamen **Google Cloud** üzerinde, **%100 ücretsiz kotalarla** çalışan; kendi YouTube kanalınızın videolarına gelen yeni yorumları otomatik okuyan, **Google Gemini AI** ile hakaret/küfür tespiti yapan ve Telegram üzerinden anlık bildirim gönderen bulut tabanlı bir sistemdir.
 

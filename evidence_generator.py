@@ -154,7 +154,7 @@ class EvidenceGenerator:
 <body>
   <div class="container">
     <div class="header">
-      <h1>⚖️ Dijital Delil Tespit Formu</h1>
+      <h1>🦅 Bateleur - Dijital Delil Tespit Tutanağı</h1>
       <span class="badge">HUKUKİ DELİL / {severity}</span>
     </div>
 
@@ -202,7 +202,7 @@ class EvidenceGenerator:
     </table>
 
     <div class="footer">
-      Bu belge, YouTube Data API v3 ve Gemini AI Adli Bilişim Analiz Altyapısı tarafından otomatik oluşturulmuştur.<br>
+      Bu tutanak, <strong>Bateleur</strong> YouTube Delil Takip ve Siber Suç Tespiti Altyapısı tarafından otomatik oluşturulmuştur.<br>
       Kalıcı Kanal ID ve Yorum URL'si doğrudan Google sunucularındaki kayıtla eşleşmektedir.
     </div>
   </div>
