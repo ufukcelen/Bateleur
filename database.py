@@ -1,4 +1,4 @@
-import sqlite3
+import json
 import os
 from typing import Set, List
 from config import Config
@@ -10,38 +10,35 @@ class BaseStorage:
     def mark_as_processed(self, comment_ids: List[str]) -> None:
         raise NotImplementedError
 
-class SQLiteStorage(BaseStorage):
-    """Yerel geliştirme ve testler için SQLite tabanlı depolama."""
-    def __init__(self, db_path: str = "processed_comments.sqlite3"):
-        self.db_path = db_path
-        self._init_db()
-
-    def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS processed_comments (
-                    comment_id TEXT PRIMARY KEY,
-                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
+class JSONStorage(BaseStorage):
+    """
+    GitHub Actions ve yerel ortam için JSON tabanlı kalıcı depolama.
+    Veritabanı kurulumu veya kart bilgisi gerektirmez; dosya git ile senkronize kalır.
+    """
+    def __init__(self, file_path: str = "processed_comments.json"):
+        self.file_path = file_path
+        if not os.path.exists(self.file_path):
+            with open(self.file_path, "w", encoding="utf-8") as f:
+                json.dump([], f)
 
     def get_processed_ids(self) -> Set[str]:
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT comment_id FROM processed_comments")
-            return {row[0] for row in cursor.fetchall()}
+        try:
+            if not os.path.exists(self.file_path):
+                return set()
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return set(data)
+        except Exception as e:
+            print(f"[JSONStorage Okuma]: {e}")
+            return set()
 
     def mark_as_processed(self, comment_ids: List[str]) -> None:
         if not comment_ids:
             return
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.executemany(
-                "INSERT OR IGNORE INTO processed_comments (comment_id) VALUES (?)",
-                [(cid,) for cid in comment_ids]
-            )
-            conn.commit()
+        current = self.get_processed_ids()
+        current.update(comment_ids)
+        with open(self.file_path, "w", encoding="utf-8") as f:
+            json.dump(sorted(list(current)), f, indent=2, ensure_ascii=False)
 
 class FirestoreStorage(BaseStorage):
     """Google Cloud Firestore tabanlı sunucusuz depolama."""
@@ -54,7 +51,6 @@ class FirestoreStorage(BaseStorage):
         self.collection = self.client.collection(collection_name)
 
     def get_processed_ids(self) -> Set[str]:
-        # Performans için son 2000 işlenmiş ID'yi getir
         docs = self.collection.order_by("processed_at", direction="DESCENDING").limit(2000).stream()
         return {doc.id for doc in docs}
 
@@ -68,7 +64,6 @@ class FirestoreStorage(BaseStorage):
             doc_ref = self.collection.document(cid)
             batch.set(doc_ref, {"processed_at": now})
             count += 1
-            # Firestore batch sınırı 500'dür
             if count >= 450:
                 batch.commit()
                 batch = self.client.batch()
@@ -79,14 +74,11 @@ class FirestoreStorage(BaseStorage):
 
 def get_storage() -> BaseStorage:
     """Konfigürasyona göre uygun depolama motorunu döndürür."""
-    if Config.USE_LOCAL_DB:
-        print("[Storage] Yerel SQLite depolama kullanılıyor.")
-        return SQLiteStorage()
+    if Config.USE_LOCAL_DB or not Config.GCP_PROJECT_ID:
+        return JSONStorage()
 
     try:
-        print("[Storage] Google Cloud Firestore'a bağlanılıyor...")
         return FirestoreStorage(Config.GCP_PROJECT_ID, Config.FIRESTORE_COLLECTION)
     except Exception as e:
-        print(f"[Storage UYARI] Firestore bağlantısı kurulamadı ({e}). Yerel SQLite depolamaya geçiliyor.")
-        return SQLiteStorage()
-
+        print(f"[Storage UYARI] Firestore bağlantısı kurulamadı ({e}). JSON depolamaya geçiliyor.")
+        return JSONStorage()
