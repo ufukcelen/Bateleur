@@ -5,23 +5,20 @@ set -e
 # Bu betik projeyi Google Cloud Functions (2. Nesil) olarak deploy eder.
 
 FUNCTION_NAME="bateleur"
-REGION="europe-west3" # Frankfurt veya europe-west1 (Belçika)
+PROJECT_ID="bateleur-513014"
+REGION="europe-west3" # Frankfurt
 RUNTIME="python311"
 ENTRY_POINT="handle_cloud_function"
 
 echo "=================================================="
-echo " Google Cloud Functions Dağıtımı Başlatılıyor"
-echo " Fonksiyon Adı: $FUNCTION_NAME"
+echo " 🦅 Bateleur Google Cloud Functions Dağıtımı"
+echo " Proje: $PROJECT_ID"
+echo " Fonksiyon: $FUNCTION_NAME"
 echo " Bölge: $REGION"
 echo "=================================================="
 
-# .env dosyasından ortam değişkenlerini oku
-if [ ! -f .env ]; then
-  echo "HATA: .env dosyası bulunamadı. Lütfen .env.example dosyasını .env olarak kopyalayıp doldurun."
-  exit 1
-fi
-
 gcloud functions deploy $FUNCTION_NAME \
+  --project=$PROJECT_ID \
   --gen2 \
   --runtime=$RUNTIME \
   --region=$REGION \
@@ -29,7 +26,7 @@ gcloud functions deploy $FUNCTION_NAME \
   --entry-point=$ENTRY_POINT \
   --trigger-http \
   --allow-unauthenticated \
-  --env-vars-file=.env.yaml \
+  --set-env-vars="YOUTUBE_API_KEY=$YOUTUBE_API_KEY,GEMINI_API_KEY=$GEMINI_API_KEY,YOUTUBE_CHANNELS=$YOUTUBE_CHANNELS,TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID,USE_LOCAL_DB=false,GCP_PROJECT_ID=$PROJECT_ID" \
   --memory=256Mi \
   --timeout=120s
 
