@@ -1,0 +1,11 @@
+# Yorum Avcısı Moderasyon Kuralları
+# Gemini modeli analiz yaparken buradaki kurallara harfiyen uyar.
+
+1. HEDEF AYRIMI:
+Videodaki futbolculara, hakeme veya teknik direktöre yönelik sitemleri/küfürleri görmezden gel; yalnızca kanal sahibine/ekibimize edilen hakaretleri yakala.
+
+2. EŞİK DEĞERİ (TOLERANS):
+Hafif alay, iğneleme veya günlük argoları tolere et; yalnızca ağır şahsi küfür ve tehditleri bildir.
+
+3. ELEŞTİRİLER:
+"Beğenmedim", "kötü video", "futbolu bilmiyorsunuz" gibi yapıcı veya sert sitemler kesinlikle hakaret değildir (temiz kabul et).
