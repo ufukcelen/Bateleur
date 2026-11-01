@@ -1,5 +1,8 @@
 import os
+import threading
+import requests
 from flask import Flask, request, jsonify
+from config import Config
 from main import run_moderation_cycle
 
 app = Flask(__name__)
@@ -17,39 +20,67 @@ def health_check():
 @app.route("/cron", methods=["GET", "POST"])
 def cron_endpoint():
     """
-    Periyodik tarama uç noktası.
-    cron-job.org veya harici zamanlayıcılar tarafından tetiklenebilir.
+    Periyodik tarama uç noktası (cron-job.org veya harici servisler için).
+    Arka planda çalıştırıp hemen 200 döner.
     """
-    print("[Render] /cron tetiklendi, periyodik tarama başlatılıyor...")
-    result = run_moderation_cycle(is_manual=False)
-    return jsonify(result), 200
+    print("[Render] /cron çağrıldı, tarama arka planda başlatılıyor...")
+    threading.Thread(target=run_moderation_cycle, kwargs={"is_manual": False}).start()
+    return jsonify({"status": "accepted", "message": "Periyodik tarama başlatıldı."}), 200
 
 @app.route("/check", methods=["GET", "POST"])
 def manual_check_endpoint():
-    """Doğrudan manuel tarama uç noktası (özet raporu Telegram'a iletir)."""
-    print("[Render] /check tetiklendi, manuel tarama başlatılıyor...")
-    result = run_moderation_cycle(is_manual=True)
-    return jsonify(result), 200
+    """Doğrudan manuel tarama uç noktası."""
+    print("[Render] /check çağrıldı, manuel tarama arka planda başlatılıyor...")
+    threading.Thread(target=run_moderation_cycle, kwargs={"is_manual": True}).start()
+    return jsonify({"status": "accepted", "message": "Manuel tarama başlatıldı."}), 200
 
 @app.route("/webhook", methods=["POST"])
 def telegram_webhook():
     """
     Telegram Webhook Giriş Noktası.
-    Telegram grubundan bota gelen mesajları (/check) dinler.
+    Telegram grubundan bota gelen mesajları (/check) karşılar.
+    Telegram'ın 502/zaman aşımına uğramaması için hemen 200 döner,
+    taramayı arka planda yürütür.
     """
     try:
         data = request.get_json(silent=True) or {}
         is_manual = False
+        chat_id = Config.TELEGRAM_CHAT_ID
+
         if "message" in data:
-            msg_text = (data["message"].get("text") or "").strip()
-            if msg_text.startswith("/check"):
+            msg = data["message"]
+            msg_text = (msg.get("text") or "").strip()
+            # Gruptan veya özelden geldiyse o chat'e yanıt ver
+            if "chat" in msg and "id" in msg["chat"]:
+                chat_id = msg["chat"]["id"]
+
+            if msg_text.startswith("/check") or msg_text.startswith("/tara"):
                 is_manual = True
 
-        result = run_moderation_cycle(is_manual=is_manual)
-        return jsonify(result), 200
+        if is_manual:
+            # Gruba anında "Tarama Başlatıldı" ön bilgisi gönder
+            ack_text = "⏳ <b>Tarama Başlatıldı...</b>\nYouTube ve Instagram hesapları taranıyor, lütfen bekleyin."
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                    json={"chat_id": chat_id, "text": ack_text, "parse_mode": "HTML"},
+                    timeout=5
+                )
+            except Exception as e:
+                print(f"[Webhook Ack Hatası]: {e}")
+
+            # Taramayı arka planda başlat
+            threading.Thread(target=run_moderation_cycle, kwargs={"is_manual": True}).start()
+        else:
+            # Diğer Telegram mesajları veya güncellemeleri için sessizce arka planda çalıştır
+            if "message" in data:
+                threading.Thread(target=run_moderation_cycle, kwargs={"is_manual": False}).start()
+
+        # Telegram'a milisaniyeler içinde 200 OK dön (asla 502 vermez)
+        return jsonify({"status": "ok"}), 200
     except Exception as e:
         print(f"[Render Webhook Hatası]: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

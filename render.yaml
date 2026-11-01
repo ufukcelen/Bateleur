@@ -3,6 +3,7 @@ services:
     name: bateleur
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn server:app
+    startCommand: gunicorn server:app --timeout 180 --workers 1
     plan: free
     autoDeploy: true
+
