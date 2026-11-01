@@ -15,11 +15,22 @@ class JSONStorage(BaseStorage):
     GitHub Actions ve yerel ortam için JSON tabanlı kalıcı depolama.
     Veritabanı kurulumu veya kart bilgisi gerektirmez; dosya git ile senkronize kalır.
     """
-    def __init__(self, file_path: str = "processed_comments.json"):
-        self.file_path = file_path
+    def __init__(self, file_path: str = None):
+        if file_path is None:
+            # Cloud Functions ortamında /tmp harici yazma korumalıdır
+            if os.getenv("K_SERVICE") or os.getenv("FUNCTION_NAME") or not os.access(".", os.W_OK):
+                self.file_path = "/tmp/processed_comments.json"
+            else:
+                self.file_path = "processed_comments.json"
+        else:
+            self.file_path = file_path
+
         if not os.path.exists(self.file_path):
-            with open(self.file_path, "w", encoding="utf-8") as f:
-                json.dump([], f)
+            try:
+                with open(self.file_path, "w", encoding="utf-8") as f:
+                    json.dump([], f)
+            except Exception as e:
+                print(f"[JSONStorage Başlatma Hatası]: {e}")
 
     def get_processed_ids(self) -> Set[str]:
         try:
