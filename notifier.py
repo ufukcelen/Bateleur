@@ -34,14 +34,22 @@ class Notifier:
         explanation = offensive_comment.get("explanation", "")
         comment_url = offensive_comment.get("comment_url", "")
         video_title = offensive_comment.get("video_title", "")
+        platform = offensive_comment.get("platform", "YouTube")
+        is_instagram = platform.lower() == "instagram"
+
+        target_label = "Hesap" if is_instagram else "Kanal"
+        content_label = "Gönderi" if is_instagram else "Video"
+        action_label = "Instagram'da Gör" if is_instagram else "Yorumu YouTube'da Gör / Sil"
+        id_label = "Kullanıcı ID / Handle" if is_instagram else "Kalıcı Kanal ID"
+        platform_icon = "📸" if is_instagram else "📺"
 
         console_msg = (
-            f"\n🚨 [HUKUKİ DELİL TESPİT EDİLDİ - {severity} Seviye]\n"
+            f"\n🚨 [HUKUKİ DELİL TESPİT EDİLDİ - {platform} - {severity} Seviye]\n"
             f"📁 Yerel Dosya: {html_file}\n"
             f"☁️ Google Drive: {drive_link or 'Henüz bağlanmadı'}\n"
-            f"📺 Kanal: {channel}\n"
-            f"🎬 Video: {video_title}\n"
-            f"👤 Şüpheli: {author} (Kanal ID: {author_channel_id})\n"
+            f"{platform_icon} {target_label}: {channel}\n"
+            f"🎬 {content_label}: {video_title}\n"
+            f"👤 Şüpheli: {author} ({id_label}: {author_channel_id})\n"
             f"💬 Yorum: \"{text}\"\n"
             f"🏷️ Kategori: {category}\n"
             f"📝 Gerekçe: {explanation}\n"
@@ -64,14 +72,14 @@ class Notifier:
         drive_line = f'☁️ <a href="{drive_link}">Google Drive\'da Delili Görüntüle</a>\n' if drive_link else ""
 
         caption = (
-            f"🚨 <b>HUKUKİ DELİL TESPİTİ</b> (<code>{severity}</code>)\n\n"
-            f"📺 <b>Kanal:</b> <code>{safe_channel}</code>\n"
-            f"🎬 <b>Video:</b> {safe_video}...\n"
+            f"🚨 <b>HUKUKİ DELİL TESPİTİ ({platform.upper()})</b> (<code>{severity}</code>)\n\n"
+            f"{platform_icon} <b>{target_label}:</b> <code>{safe_channel}</code>\n"
+            f"🎬 <b>{content_label}:</b> {safe_video}...\n"
             f"👤 <b>Şahıs:</b> <b>{safe_author}</b>\n"
-            f"🆔 <b>Kalıcı Kanal ID:</b> <code>{safe_author_id}</code>\n\n"
+            f"🆔 <b>{id_label}:</b> <code>{safe_author_id}</code>\n\n"
             f"💬 <b>Yorum:</b>\n<i>\"{safe_text}\"</i>\n\n"
             f"⚖️ <b>Hukuki Gerekçe:</b> <i>{safe_explanation}</i>\n\n"
-            f"👉 <a href=\"{comment_url}\">Yorumu YouTube'da Gör / Sil</a>\n"
+            f"👉 <a href=\"{comment_url}\">{action_label}</a>\n"
             f"{drive_line}"
             f"📁 <i>Delil Dosyası: {os.path.basename(html_file)}</i>"
         )

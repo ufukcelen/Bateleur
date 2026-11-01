@@ -111,6 +111,7 @@ class YouTubeClient:
 
                 comments.append({
                     "comment_id": comment_id,
+                    "platform": "YouTube",
                     "channel_name": channel_name,
                     "video_id": video_id,
                     "video_title": video_title,

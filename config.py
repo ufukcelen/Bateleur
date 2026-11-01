@@ -30,3 +30,10 @@ class Config:
 
     # Her video için maksimum yorum sınırı
     MAX_COMMENTS_PER_VIDEO: int = int(os.getenv("MAX_COMMENTS_PER_VIDEO", "100"))
+
+    # Instagram & Apify Ayarları
+    APIFY_API_TOKEN: str = os.getenv("APIFY_API_TOKEN", "")
+    _raw_ig_profiles = os.getenv("INSTAGRAM_PROFILES", "")
+    INSTAGRAM_PROFILES: List[str] = [p.strip().lstrip("@") for p in _raw_ig_profiles.split(",") if p.strip()]
+    RECENT_INSTAGRAM_POSTS_COUNT: int = int(os.getenv("RECENT_INSTAGRAM_POSTS_COUNT", "3"))
+    MAX_COMMENTS_PER_INSTAGRAM_POST: int = int(os.getenv("MAX_COMMENTS_PER_INSTAGRAM_POST", "50"))

@@ -56,8 +56,8 @@ class CommentModerator:
         )
 
         base_instruction = (
-            "Sen bir YouTube kanalının topluluk uzmanısın. "
-            "Sana kanalın son videolarına gelen yorumlar verilecek.\n"
+            "Sen bir sosyal medya ve dijital topluluk moderasyon uzmanısın. "
+            "Sana YouTube videolarına veya Instagram gönderilerine gelen yorumlar verilecek.\n"
         )
         active_rules = custom_rules if custom_rules else default_rules
         system_instruction = f"{base_instruction}\nUyman gereken kurallar:\n{active_rules}\n\nSadece geçerli bir JSON listesi döndür."

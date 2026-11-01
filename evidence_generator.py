@@ -28,6 +28,12 @@ class EvidenceGenerator:
         category = comment_data.get("category", "").upper()
         severity = comment_data.get("severity", "").upper()
         explanation = comment_data.get("explanation", "")
+        platform = comment_data.get("platform", "YouTube")
+        is_instagram = platform.lower() == "instagram"
+
+        target_label = "Mağdur Hesap" if is_instagram else "Mağdur Kanal"
+        content_label = "İlgili Gönderi" if is_instagram else "İlgili Video"
+        id_label = "Kullanıcı ID / Handle" if is_instagram else "Kalıcı Kanal ID"
         
         detection_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
@@ -35,7 +41,7 @@ class EvidenceGenerator:
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>Dijital Delil Tespit Tutanağı - {author_name}</title>
+  <title>Dijital Delil Tespit Tutanağı ({platform}) - {author_name}</title>
   <style>
     body {{
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -155,7 +161,7 @@ class EvidenceGenerator:
   <div class="container">
     <div class="header">
       <h1>🦅 Bateleur - Dijital Delil Tespit Tutanağı</h1>
-      <span class="badge">HUKUKİ DELİL / {severity}</span>
+      <span class="badge">HUKUKİ DELİL ({platform.upper()}) / {severity}</span>
     </div>
 
     <div class="section-title">Şüpheli / Hesap Bilgileri</div>
@@ -163,7 +169,7 @@ class EvidenceGenerator:
       <img src="{author_img}" alt="Profil Fotoğrafı" class="avatar" onerror="this.src='https://dummyimage.com/70x70/cbd5e1/475569.png&text=YOK'">
       <div class="profile-info">
         <div><strong>Kullanıcı Adı:</strong> {author_name}</div>
-        <div><strong>Kalıcı Kanal ID:</strong> <code>{author_channel_id}</code></div>
+        <div><strong>{id_label}:</strong> <code>{author_channel_id}</code></div>
         <div><strong>Profil Bağlantısı:</strong> <a href="{author_channel_url}" target="_blank">{author_channel_url}</a></div>
       </div>
     </div>
@@ -176,15 +182,15 @@ class EvidenceGenerator:
     <div class="section-title">Teknik ve Hukuki Detaylar</div>
     <table class="meta-table">
       <tr>
-        <td>Mağdur Kanal</td>
+        <td>{target_label}</td>
         <td><strong>{channel_name}</strong></td>
       </tr>
       <tr>
-        <td>İlgili Video</td>
+        <td>{content_label}</td>
         <td><a href="{video_url}" target="_blank">{video_title}</a></td>
       </tr>
       <tr>
-        <td>Yorum Doğrudan URL (Kalıcı Link)</td>
+        <td>Yorum / İçerik URL</td>
         <td><a href="{comment_url}" target="_blank">{comment_url}</a></td>
       </tr>
       <tr>
@@ -202,8 +208,8 @@ class EvidenceGenerator:
     </table>
 
     <div class="footer">
-      Bu tutanak, <strong>Bateleur</strong> YouTube Delil Takip ve Siber Suç Tespiti Altyapısı tarafından otomatik oluşturulmuştur.<br>
-      Kalıcı Kanal ID ve Yorum URL'si doğrudan Google sunucularındaki kayıtla eşleşmektedir.
+      Bu tutanak, <strong>Bateleur</strong> Siber Delil Takip ve Hakaret Tespiti Altyapısı tarafından otomatik oluşturulmuştur.<br>
+      Kullanıcı ID ve doğrudan içerik URL'si sunucu kayıtlarıyla eşleşmektedir.
     </div>
   </div>
 </body>

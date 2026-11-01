@@ -5,25 +5,27 @@ from typing import Dict, Any
 from config import Config
 from database import get_storage
 from youtube_client import YouTubeClient
+from instagram_client import InstagramClient
 from moderator import CommentModerator
 from notifier import Notifier
 
 def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     """
     Tek bir tarama döngüsünü çalıştırır:
-    - Son 3 içerikteki yeni yorumları tarar.
+    - YouTube ve Instagram'daki son içeriklerin yeni yorumlarını tarar.
     - Sadece hakaret varsa delil oluşturup Telegram'a bildirir.
     - is_manual=True ise (/check komutu ile çağrıldıysa) temiz olsa dahi gruba özet bilgi döner.
     """
     print("=" * 60)
-    print("🦅 Bateleur - YouTube Moderasyon & Delil Takip Döngüsü" + (" (MANUEL: /check)" if is_manual else ""))
-    print(f"🎯 Hedef Kanallar: {', '.join(Config.YOUTUBE_CHANNELS)}")
-    print(f"🎬 Kanal Başına Son İçerik: {Config.RECENT_VIDEOS_COUNT}")
+    print("🦅 Bateleur - Sosyal Medya Moderasyon & Delil Takip Döngüsü" + (" (MANUEL: /check)" if is_manual else ""))
+    if Config.YOUTUBE_CHANNELS:
+        print(f"📺 Hedef YouTube Kanalları: {', '.join(Config.YOUTUBE_CHANNELS)} (Son {Config.RECENT_VIDEOS_COUNT} içerik)")
+    if Config.INSTAGRAM_PROFILES:
+        print(f"📸 Hedef Instagram Profilleri: {', '.join(Config.INSTAGRAM_PROFILES)} (Son {Config.RECENT_INSTAGRAM_POSTS_COUNT} içerik)")
     print("=" * 60)
 
     # 1. Servisleri başlat
     storage = get_storage()
-    youtube = YouTubeClient()
     moderator = CommentModerator()
     notifier = Notifier()
 
@@ -33,14 +35,57 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
 
     # 3. Yorumları çek
     all_recent_comments = []
-    for channel_id in Config.YOUTUBE_CHANNELS:
-        try:
-            ch_comments = youtube.get_comments_for_channel(channel_id, video_count=Config.RECENT_VIDEOS_COUNT)
-            all_recent_comments.extend(ch_comments)
-        except Exception as e:
-            print(f"[HATA] {channel_id} yorumları çekilemedi: {e}")
 
-    print(f"\n[YouTube] Toplam {len(all_recent_comments)} adet yorum toplandı.")
+    # 3a. YouTube yorumları
+    if Config.YOUTUBE_API_KEY and Config.YOUTUBE_CHANNELS:
+        try:
+            youtube = YouTubeClient()
+            yt_count = 0
+            for channel_id in Config.YOUTUBE_CHANNELS:
+                try:
+                    ch_comments = youtube.get_comments_for_channel(channel_id, video_count=Config.RECENT_VIDEOS_COUNT)
+                    all_recent_comments.extend(ch_comments)
+                    yt_count += len(ch_comments)
+                except Exception as e:
+                    print(f"[HATA] YouTube ({channel_id}) yorumları çekilemedi: {e}")
+            print(f"[YouTube] Toplam {yt_count} adet yorum toplandı.")
+        except Exception as e:
+            print(f"[YouTube Başlatma Hatası]: {e}")
+    else:
+        print("[YouTube] YOUTUBE_API_KEY veya kanal listesi tanımlı değil, atlanıyor.")
+
+    # 3b. Instagram yorumları (Meta API ve login gerektirmez - Apify Scraper)
+    if Config.APIFY_API_TOKEN and Config.INSTAGRAM_PROFILES:
+        try:
+            instagram = InstagramClient()
+            ig_count = 0
+            for profile in Config.INSTAGRAM_PROFILES:
+                try:
+                    ig_comments = instagram.get_comments_for_profile(
+                        profile,
+                        post_count=Config.RECENT_INSTAGRAM_POSTS_COUNT,
+                        max_comments_per_post=Config.MAX_COMMENTS_PER_INSTAGRAM_POST
+                    )
+                    all_recent_comments.extend(ig_comments)
+                    ig_count += len(ig_comments)
+                except Exception as e:
+                    print(f"[HATA] Instagram (@{profile}) yorumları çekilemedi: {e}")
+            print(f"[Instagram] Toplam {ig_count} adet yorum toplandı.")
+        except Exception as e:
+            print(f"[Instagram Başlatma Hatası]: {e}")
+    else:
+        if not Config.APIFY_API_TOKEN and Config.INSTAGRAM_PROFILES:
+            print("[Instagram] UYARI: INSTAGRAM_PROFILES tanımlı ancak APIFY_API_TOKEN girilmemiş. Instagram atlandı.")
+
+    print(f"\n[Havuz] Toplam {len(all_recent_comments)} adet yorum toplandı.")
+
+    # Hedef özet metni (Manuel tarama Telegram raporu için)
+    sources_summary = []
+    if Config.YOUTUBE_CHANNELS and Config.YOUTUBE_API_KEY:
+        sources_summary.append(f"📺 <b>YouTube:</b> <i>{', '.join(Config.YOUTUBE_CHANNELS)}</i>")
+    if Config.INSTAGRAM_PROFILES and Config.APIFY_API_TOKEN:
+        sources_summary.append(f"📸 <b>Instagram:</b> <i>{', '.join(Config.INSTAGRAM_PROFILES)}</i>")
+    sources_text = "\n".join(sources_summary) if sources_summary else "<i>Sosyal medya hesapları</i>"
 
     # 4. Sadece yeni olanları filtrele
     new_comments = [c for c in all_recent_comments if c["comment_id"] not in processed_ids]
@@ -49,7 +94,7 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
         if is_manual and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
             msg = (
                 "✅ <b>Manuel Tarama Tamamlandı (/check)</b>\n\n"
-                f"📺 <i>{', '.join(Config.YOUTUBE_CHANNELS)}</i> kanallarının son içerikleri incelendi.\n"
+                f"{sources_text}\n\n"
                 "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit bulunamadı."
             )
             requests.post(
@@ -78,6 +123,7 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     if is_manual and offensive_count == 0 and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
         msg = (
             "✅ <b>Manuel Tarama Tamamlandı (/check)</b>\n\n"
+            f"{sources_text}\n"
             f"🔍 <b>{len(new_comments)}</b> yeni yorum incelendi.\n"
             "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret tespit edilmedi."
         )
