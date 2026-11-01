@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: bateleur
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app
+    plan: free
+    autoDeploy: true
