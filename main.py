@@ -89,13 +89,21 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
 
     # 4. Sadece yeni olanları filtrele
     new_comments = [c for c in all_recent_comments if c["comment_id"] not in processed_ids]
+    
+    # Sayım özetleri
+    yt_comments_count = len([c for c in all_recent_comments if c.get("platform") == "YouTube"])
+    ig_comments_count = len([c for c in all_recent_comments if c.get("platform") == "Instagram"])
+
     if not new_comments:
         print("✅ İncelenecek YENİ yorum bulunamadı.")
         if is_manual and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
             msg = (
-                "✅ <b>Manuel Tarama Tamamlandı (/check)</b>\n\n"
+                "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
                 f"{sources_text}\n\n"
-                "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit bulunamadı."
+                f"📊 <b>İncelenen İçerikler:</b>\n"
+                f"• YouTube: {yt_comments_count} yorum kontrol edildi\n"
+                f"• Instagram: {ig_comments_count} yorum kontrol edildi\n\n"
+                "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit tespit edilmedi."
             )
             requests.post(
                 f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
@@ -122,10 +130,12 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
 
     if is_manual and offensive_count == 0 and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
         msg = (
-            "✅ <b>Manuel Tarama Tamamlandı (/check)</b>\n\n"
-            f"{sources_text}\n"
-            f"🔍 <b>{len(new_comments)}</b> yeni yorum incelendi.\n"
-            "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret tespit edilmedi."
+            "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
+            f"{sources_text}\n\n"
+            f"🔍 <b>{len(new_comments)}</b> yeni yorum Gemini AI ile analiz edildi.\n"
+            f"• YouTube: {yt_comments_count} yorum\n"
+            f"• Instagram: {ig_comments_count} yorum\n\n"
+            "✨ <b>Tüm yorumlar temiz!</b> Yeni bir hakaret veya tehdit tespit edilmedi."
         )
         requests.post(
             f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
@@ -162,7 +172,8 @@ def handle_cloud_function(request):
         return ({"status": "error", "message": str(e)}, 500, {"Content-Type": "application/json"})
 
 if __name__ == "__main__":
-    is_check = "--check" in sys.argv
+    import os
+    is_check = "--check" in sys.argv or os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch"
     try:
         run_moderation_cycle(is_manual=is_check)
     except KeyboardInterrupt:
