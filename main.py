@@ -99,21 +99,53 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     yt_comments_count = len([c for c in all_recent_comments if c.get("platform") == "YouTube"])
     ig_comments_count = len([c for c in all_recent_comments if c.get("platform") == "Instagram"])
 
+    # Tarih formatlayıcı (Örn: 2026-10-31T... -> 31 Eki)
+    def _format_date(iso_str: str) -> str:
+        if not iso_str:
+            return ""
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+            months = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
+            return f"{dt.day} {months[dt.month]}"
+        except Exception:
+            return ""
+
+    # Aynı URL'lerin mükerrer listelenmesini önle
+    seen_urls = set()
+    unique_yt = []
+    for v in scanned_yt:
+        u = v.get("url", "")
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            unique_yt.append(v)
+
+    unique_ig = []
+    for p in scanned_ig:
+        u = p.get("url", "")
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            unique_ig.append(p)
+
     # Kontrol edilen içeriklerin tıklanabilir link listesi
     links_lines = []
-    if scanned_yt:
+    if unique_yt:
         links_lines.append("📺 <b>YouTube Videoları:</b>")
-        for v in scanned_yt:
+        for v in unique_yt:
             v_title = html.escape(v.get("title", "Video")[:45])
-            links_lines.append(f"• <a href=\"{v['url']}\">{v_title}</a> ({html.escape(v.get('channel', ''))})")
+            d_str = _format_date(v.get("published_at", ""))
+            date_badge = f" [<code>{d_str}</code>]" if d_str else ""
+            links_lines.append(f"• <a href=\"{v['url']}\">{v_title}</a>{date_badge} ({html.escape(v.get('channel', ''))})")
 
-    if scanned_ig:
+    if unique_ig:
         if links_lines:
             links_lines.append("")
         links_lines.append("📸 <b>Instagram Gönderileri:</b>")
-        for p in scanned_ig:
+        for p in unique_ig:
             p_title = html.escape(p.get("title", "Gönderi")[:45])
-            links_lines.append(f"• <a href=\"{p['url']}\">{p_title}</a> ({html.escape(p.get('channel', ''))})")
+            d_str = _format_date(p.get("published_at", ""))
+            date_badge = f" [<code>{d_str}</code>]" if d_str else ""
+            links_lines.append(f"• <a href=\"{p['url']}\">{p_title}</a>{date_badge} ({html.escape(p.get('channel', ''))})")
 
     links_block = "\n".join(links_lines)
     links_section = f"\n\n🔗 <b>Kontrol Edilen İçerik Linkleri:</b>\n{links_block}" if links_block else ""

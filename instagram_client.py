@@ -83,6 +83,7 @@ class InstagramClient:
                 "channel": f"@{username}",
                 "title": (cap[:45] + "...") if cap else "Instagram Gönderisi",
                 "url": p.get("url", ""),
+                "published_at": p.get("timestamp", ""),
             })
 
         post_urls = [p["url"] for p in posts if p.get("url")]

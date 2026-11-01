@@ -147,6 +147,7 @@ class YouTubeClient:
                 "channel": channel_identifier,
                 "title": v.get("title", "Video"),
                 "url": f"https://www.youtube.com/watch?v={v['video_id']}",
+                "published_at": v.get("published_at", ""),
             })
             comments = self.get_comments_for_video(
                 v["video_id"],
