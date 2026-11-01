@@ -1,4 +1,5 @@
 import sys
+import html
 import requests
 from typing import Dict, Any
 
@@ -35,6 +36,8 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
 
     # 3. Yorumları çek
     all_recent_comments = []
+    scanned_yt = []
+    scanned_ig = []
 
     # 3a. YouTube yorumları
     if Config.YOUTUBE_API_KEY and Config.YOUTUBE_CHANNELS:
@@ -48,6 +51,7 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
                     yt_count += len(ch_comments)
                 except Exception as e:
                     print(f"[HATA] YouTube ({channel_id}) yorumları çekilemedi: {e}")
+            scanned_yt = getattr(youtube, "scanned_videos", [])
             print(f"[YouTube] Toplam {yt_count} adet yorum toplandı.")
         except Exception as e:
             print(f"[YouTube Başlatma Hatası]: {e}")
@@ -70,6 +74,7 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
                     ig_count += len(ig_comments)
                 except Exception as e:
                     print(f"[HATA] Instagram (@{profile}) yorumları çekilemedi: {e}")
+            scanned_ig = getattr(instagram, "scanned_posts", [])
             print(f"[Instagram] Toplam {ig_count} adet yorum toplandı.")
         except Exception as e:
             print(f"[Instagram Başlatma Hatası]: {e}")
@@ -94,15 +99,35 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     yt_comments_count = len([c for c in all_recent_comments if c.get("platform") == "YouTube"])
     ig_comments_count = len([c for c in all_recent_comments if c.get("platform") == "Instagram"])
 
+    # Kontrol edilen içeriklerin tıklanabilir link listesi
+    links_lines = []
+    if scanned_yt:
+        links_lines.append("📺 <b>YouTube Videoları:</b>")
+        for v in scanned_yt:
+            v_title = html.escape(v.get("title", "Video")[:45])
+            links_lines.append(f"• <a href=\"{v['url']}\">{v_title}</a> ({html.escape(v.get('channel', ''))})")
+
+    if scanned_ig:
+        if links_lines:
+            links_lines.append("")
+        links_lines.append("📸 <b>Instagram Gönderileri:</b>")
+        for p in scanned_ig:
+            p_title = html.escape(p.get("title", "Gönderi")[:45])
+            links_lines.append(f"• <a href=\"{p['url']}\">{p_title}</a> ({html.escape(p.get('channel', ''))})")
+
+    links_block = "\n".join(links_lines)
+    links_section = f"\n\n🔗 <b>Kontrol Edilen İçerik Linkleri:</b>\n{links_block}" if links_block else ""
+
     if not new_comments:
         print("✅ İncelenecek YENİ yorum bulunamadı.")
         if is_manual and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
             msg = (
                 "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
                 f"{sources_text}\n\n"
-                f"📊 <b>İncelenen İçerikler:</b>\n"
+                f"📊 <b>İncelenen Yorum Sayıları:</b>\n"
                 f"• YouTube: {yt_comments_count} yorum kontrol edildi\n"
-                f"• Instagram: {ig_comments_count} yorum kontrol edildi\n\n"
+                f"• Instagram: {ig_comments_count} yorum kontrol edildi"
+                f"{links_section}\n\n"
                 "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit tespit edilmedi."
             )
             requests.post(
@@ -134,7 +159,8 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
             f"{sources_text}\n\n"
             f"🔍 <b>{len(new_comments)}</b> yeni yorum Gemini AI ile analiz edildi.\n"
             f"• YouTube: {yt_comments_count} yorum\n"
-            f"• Instagram: {ig_comments_count} yorum\n\n"
+            f"• Instagram: {ig_comments_count} yorum"
+            f"{links_section}\n\n"
             "✨ <b>Tüm yorumlar temiz!</b> Yeni bir hakaret veya tehdit tespit edilmedi."
         )
         requests.post(

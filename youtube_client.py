@@ -16,6 +16,7 @@ class YouTubeClient:
         if not self.api_key:
             raise ValueError("YouTube API anahtarı (YOUTUBE_API_KEY) tanımlanmamış!")
         self.youtube = build("youtube", "v3", developerKey=self.api_key)
+        self.scanned_videos: List[Dict[str, str]] = []
 
     def resolve_channel_id(self, identifier: str) -> str:
         """
@@ -142,6 +143,11 @@ class YouTubeClient:
         
         all_comments = []
         for v in latest_videos:
+            self.scanned_videos.append({
+                "channel": channel_identifier,
+                "title": v.get("title", "Video"),
+                "url": f"https://www.youtube.com/watch?v={v['video_id']}",
+            })
             comments = self.get_comments_for_video(
                 v["video_id"],
                 video_title=v["title"],

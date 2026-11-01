@@ -12,6 +12,7 @@ class InstagramClient:
         if not self.api_token:
             raise ValueError("Apify API anahtarı (APIFY_API_TOKEN) tanımlanmamış!")
         self.client = ApifyClient(self.api_token)
+        self.scanned_posts: List[Dict[str, str]] = []
 
     @staticmethod
     def _get_dataset_id(run) -> str:
@@ -75,6 +76,14 @@ class InstagramClient:
         if not posts:
             print(f"[Instagram] @{username} için incelenecek gönderi bulunamadı.")
             return []
+
+        for p in posts:
+            cap = p.get("caption", "").strip()
+            self.scanned_posts.append({
+                "channel": f"@{username}",
+                "title": (cap[:45] + "...") if cap else "Instagram Gönderisi",
+                "url": p.get("url", ""),
+            })
 
         post_urls = [p["url"] for p in posts if p.get("url")]
         if not post_urls:
