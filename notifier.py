@@ -94,7 +94,7 @@ class Notifier:
                 "parse_mode": "HTML"
             }
             try:
-                res = requests.post(photo_url, json=payload, timeout=10)
+                res = requests.post(photo_url, json=payload, timeout=25)
                 if res.status_code == 200:
                     print(f"[Notifier] Ekip Telegram grubuna fotoğraflı delil bildirimi iletildi ({author}).")
                     return True
@@ -112,7 +112,7 @@ class Notifier:
             "disable_web_page_preview": False
         }
         try:
-            res = requests.post(msg_url, json=payload, timeout=10)
+            res = requests.post(msg_url, json=payload, timeout=25)
             return res.status_code == 200
         except Exception as e:
             print(f"[Notifier Hatası]: {e}")
