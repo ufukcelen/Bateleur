@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from config import Config
 from youtube_client import YouTubeClient
 from instagram_client import InstagramClient
+from tiktok_client import TikTokClient
 from moderator import CommentModerator
 from evidence_generator import EvidenceGenerator
 from notifier import Notifier
@@ -65,6 +66,21 @@ class TestBateleurComprehensive(unittest.TestCase):
         run_dict2 = {"default_dataset_id": "dataset_ghi_789"}
         self.assertEqual(InstagramClient._get_dataset_id(run_dict2), "dataset_ghi_789")
         print("  [BAŞARILI] Apify v3 model ve dict varyantları sorunsuz işlendi.")
+
+    def test_03b_tiktok_username_cleaner(self):
+        print("\n--- [TEST 3b] TikTok Kullanıcı Adı Temizleme Testi ---")
+        cases = [
+            ("/uykusuztosba", "uykusuztosba"),
+            ("@uykusuztosba", "uykusuztosba"),
+            ("https://www.tiktok.com/@donkisotttt", "donkisotttt"),
+            ("burhan.mutlugz/", "burhan.mutlugz"),
+            ("   @burhan.mutlugz/  ", "burhan.mutlugz")
+        ]
+        for raw, expected in cases:
+            cleaned = TikTokClient.clean_username(raw)
+            self.assertEqual(cleaned, expected, f"TikTok temizleme hatası: {raw} -> {cleaned} != {expected}")
+        self.assertEqual(len(Config.TIKTOK_PROFILES), 3, "3 TikTok hesabı tanımlı olmalı")
+        print("  [BAŞARILI] TikTok kullanıcı adları (/uykusuztosba, /donkisotttt, /burhan.mutlugz) doğrulandı.")
 
     # ==========================================
     # 3. YOUTUBE CLIENT TESTS

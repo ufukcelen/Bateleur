@@ -37,3 +37,9 @@ class Config:
     INSTAGRAM_PROFILES: List[str] = [p.strip().lstrip("@") for p in _raw_ig_profiles.split(",") if p.strip()]
     RECENT_INSTAGRAM_POSTS_COUNT: int = int(os.getenv("RECENT_INSTAGRAM_POSTS_COUNT", "3"))
     MAX_COMMENTS_PER_INSTAGRAM_POST: int = int(os.getenv("MAX_COMMENTS_PER_INSTAGRAM_POST", "50"))
+
+    # TikTok & Apify Ayarları
+    _raw_tt_profiles = os.getenv("TIKTOK_PROFILES", "") or "uykusuztosba,donkisotttt,burhan.mutlugz"
+    TIKTOK_PROFILES: List[str] = [p.strip().lstrip("@/").strip() for p in _raw_tt_profiles.split(",") if p.strip()]
+    RECENT_TIKTOK_POSTS_COUNT: int = int(os.getenv("RECENT_TIKTOK_POSTS_COUNT", "3"))
+    MAX_COMMENTS_PER_TIKTOK_POST: int = int(os.getenv("MAX_COMMENTS_PER_TIKTOK_POST", "30"))

@@ -31,10 +31,20 @@ class EvidenceGenerator:
         explanation = comment_data.get("explanation", "")
         platform = comment_data.get("platform", "YouTube")
         is_instagram = platform.lower() == "instagram"
+        is_tiktok = platform.lower() == "tiktok"
 
-        target_label = "Mağdur Hesap" if is_instagram else "Mağdur Kanal"
-        content_label = "İlgili Gönderi" if is_instagram else "İlgili Video"
-        id_label = "Kullanıcı ID / Handle" if is_instagram else "Kalıcı Kanal ID"
+        if is_tiktok:
+            target_label = "Mağdur TikTok Hesabı"
+            content_label = "İlgili TikTok Videosu"
+            id_label = "TikTok Kullanıcı ID / Handle"
+        elif is_instagram:
+            target_label = "Mağdur Hesap"
+            content_label = "İlgili Gönderi"
+            id_label = "Kullanıcı ID / Handle"
+        else:
+            target_label = "Mağdur Kanal"
+            content_label = "İlgili Video"
+            id_label = "Kalıcı Kanal ID"
         
         detection_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 

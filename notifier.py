@@ -36,12 +36,26 @@ class Notifier:
         video_title = offensive_comment.get("video_title", "")
         platform = offensive_comment.get("platform", "YouTube")
         is_instagram = platform.lower() == "instagram"
+        is_tiktok = platform.lower() == "tiktok"
 
-        target_label = "Hesap" if is_instagram else "Kanal"
-        content_label = "Gönderi" if is_instagram else "Video"
-        action_label = "Instagram'da Gör" if is_instagram else "Yorumu YouTube'da Gör / Sil"
-        id_label = "Kullanıcı ID / Handle" if is_instagram else "Kalıcı Kanal ID"
-        platform_icon = "📸" if is_instagram else "📺"
+        if is_tiktok:
+            target_label = "TikTok Hesabı"
+            content_label = "TikTok Videosu"
+            action_label = "TikTok'ta Gör / İncele"
+            id_label = "TikTok Kullanıcı ID / Handle"
+            platform_icon = "🎵"
+        elif is_instagram:
+            target_label = "Instagram Hesabı"
+            content_label = "Instagram Gönderisi"
+            action_label = "Instagram'da Gör"
+            id_label = "Kullanıcı ID / Handle"
+            platform_icon = "📸"
+        else:
+            target_label = "Kanal"
+            content_label = "Video"
+            action_label = "Yorumu YouTube'da Gör / Sil"
+            id_label = "Kalıcı Kanal ID"
+            platform_icon = "📺"
 
         console_msg = (
             f"\n🚨 [HUKUKİ DELİL TESPİT EDİLDİ - {platform} - {severity} Seviye]\n"

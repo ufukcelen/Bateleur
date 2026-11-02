@@ -7,6 +7,7 @@ from config import Config
 from database import get_storage
 from youtube_client import YouTubeClient
 from instagram_client import InstagramClient
+from tiktok_client import TikTokClient
 from moderator import CommentModerator
 from notifier import Notifier
 
@@ -23,6 +24,8 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
         print(f"📺 Hedef YouTube Kanalları: {', '.join(Config.YOUTUBE_CHANNELS)} (Son {Config.RECENT_VIDEOS_COUNT} içerik)")
     if Config.INSTAGRAM_PROFILES:
         print(f"📸 Hedef Instagram Profilleri: {', '.join(Config.INSTAGRAM_PROFILES)} (Son {Config.RECENT_INSTAGRAM_POSTS_COUNT} içerik)")
+    if Config.TIKTOK_PROFILES:
+        print(f"🎵 Hedef TikTok Profilleri: {', '.join(Config.TIKTOK_PROFILES)} (Son {Config.RECENT_TIKTOK_POSTS_COUNT} içerik)")
     print("=" * 60)
 
     # 1. Servisleri başlat
@@ -38,6 +41,7 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
     all_recent_comments = []
     scanned_yt = []
     scanned_ig = []
+    scanned_tt = []
 
     # 3a. YouTube yorumları
     if Config.YOUTUBE_API_KEY and Config.YOUTUBE_CHANNELS:
@@ -82,6 +86,24 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
         if not Config.APIFY_API_TOKEN and Config.INSTAGRAM_PROFILES:
             print("[Instagram] UYARI: INSTAGRAM_PROFILES tanımlı ancak APIFY_API_TOKEN girilmemiş. Instagram atlandı.")
 
+    # 3c. TikTok yorumları (Resmi API ve giriş gerektirmez - Apify Scraper)
+    if Config.APIFY_API_TOKEN and Config.TIKTOK_PROFILES:
+        try:
+            tiktok = TikTokClient()
+            tt_comments = tiktok.get_comments_for_profiles(
+                Config.TIKTOK_PROFILES,
+                video_count=Config.RECENT_TIKTOK_POSTS_COUNT,
+                max_comments_per_video=Config.MAX_COMMENTS_PER_TIKTOK_POST
+            )
+            all_recent_comments.extend(tt_comments)
+            scanned_tt = getattr(tiktok, "scanned_videos", [])
+            print(f"[TikTok] Toplam {len(tt_comments)} adet yorum toplandı.")
+        except Exception as e:
+            print(f"[TikTok Başlatma Hatası]: {e}")
+    else:
+        if not Config.APIFY_API_TOKEN and Config.TIKTOK_PROFILES:
+            print("[TikTok] UYARI: TIKTOK_PROFILES tanımlı ancak APIFY_API_TOKEN girilmemiş. TikTok atlandı.")
+
     print(f"\n[Havuz] Toplam {len(all_recent_comments)} adet yorum toplandı.")
 
     # Hedef özet metni (Manuel tarama Telegram raporu için)
@@ -90,6 +112,8 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
         sources_summary.append(f"📺 <b>YouTube:</b> <i>{', '.join(Config.YOUTUBE_CHANNELS)}</i>")
     if Config.INSTAGRAM_PROFILES and Config.APIFY_API_TOKEN:
         sources_summary.append(f"📸 <b>Instagram:</b> <i>{', '.join(Config.INSTAGRAM_PROFILES)}</i>")
+    if Config.TIKTOK_PROFILES and Config.APIFY_API_TOKEN:
+        sources_summary.append(f"🎵 <b>TikTok:</b> <i>{', '.join(Config.TIKTOK_PROFILES)}</i>")
     sources_text = "\n".join(sources_summary) if sources_summary else "<i>Sosyal medya hesapları</i>"
 
     # 4. Sadece yeni olanları filtrele
@@ -98,6 +122,7 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
     # Sayım özetleri
     yt_comments_count = len([c for c in all_recent_comments if c.get("platform") == "YouTube"])
     ig_comments_count = len([c for c in all_recent_comments if c.get("platform") == "Instagram"])
+    tt_comments_count = len([c for c in all_recent_comments if c.get("platform") == "TikTok"])
 
     # Tarih formatlayıcı (Örn: 2026-10-31T... -> 31 Eki)
     def _format_date(iso_str: str) -> str:
@@ -127,6 +152,13 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
             seen_urls.add(u)
             unique_ig.append(p)
 
+    unique_tt = []
+    for v in scanned_tt:
+        u = v.get("url", "")
+        if u and u not in seen_urls:
+            seen_urls.add(u)
+            unique_tt.append(v)
+
     # Kontrol edilen içeriklerin tıklanabilir link listesi
     links_lines = []
     if unique_yt:
@@ -147,6 +179,16 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
             date_badge = f" [<code>{d_str}</code>]" if d_str else ""
             links_lines.append(f"• <a href=\"{p['url']}\">{p_title}</a>{date_badge} ({html.escape(p.get('channel', ''))})")
 
+    if unique_tt:
+        if links_lines:
+            links_lines.append("")
+        links_lines.append("🎵 <b>TikTok Videoları:</b>")
+        for t in unique_tt:
+            t_title = html.escape(t.get("title", "TikTok Videosu")[:45])
+            d_str = _format_date(t.get("published_at", ""))
+            date_badge = f" [<code>{d_str}</code>]" if d_str else ""
+            links_lines.append(f"• <a href=\"{t['url']}\">{t_title}</a>{date_badge} ({html.escape(t.get('channel', ''))})")
+
     links_block = "\n".join(links_lines)
     links_section = f"\n\n🔗 <b>Kontrol Edilen İçerik Linkleri:</b>\n{links_block}" if links_block else ""
 
@@ -155,12 +197,16 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
     if not new_comments:
         print("✅ İncelenecek YENİ yorum bulunamadı.")
         if is_manual and Config.TELEGRAM_BOT_TOKEN and dest_chat:
+            counts_summary = [f"• YouTube: {yt_comments_count} yorum kontrol edildi", f"• Instagram: {ig_comments_count} yorum kontrol edildi"]
+            if Config.TIKTOK_PROFILES:
+                counts_summary.append(f"• TikTok: {tt_comments_count} yorum kontrol edildi")
+            counts_text = "\n".join(counts_summary)
+
             msg = (
                 "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
                 f"{sources_text}\n\n"
                 f"📊 <b>İncelenen Yorum Sayıları:</b>\n"
-                f"• YouTube: {yt_comments_count} yorum kontrol edildi\n"
-                f"• Instagram: {ig_comments_count} yorum kontrol edildi"
+                f"{counts_text}"
                 f"{links_section}\n\n"
                 "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit tespit edilmedi."
             )
@@ -201,12 +247,16 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
             if offensive_count == 0 else
             f"🚨 <b>{offensive_count} adet hakaret/tehdit tespit edildi</b> ve delil kartları iletildi."
         )
+        counts_summary = [f"• YouTube: {yt_comments_count} yorum", f"• Instagram: {ig_comments_count} yorum"]
+        if Config.TIKTOK_PROFILES:
+            counts_summary.append(f"• TikTok: {tt_comments_count} yorum")
+        counts_text = "\n".join(counts_summary)
+
         msg = (
             "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
             f"{sources_text}\n\n"
             f"🔍 <b>{len(new_comments)}</b> yeni yorum Gemini AI ile analiz edildi.\n"
-            f"• YouTube: {yt_comments_count} yorum\n"
-            f"• Instagram: {ig_comments_count} yorum"
+            f"{counts_text}"
             f"{links_section}\n\n"
             f"{status_line}"
         )

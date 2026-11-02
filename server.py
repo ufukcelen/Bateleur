@@ -22,10 +22,11 @@ def health_check():
             "gemini_key_set": bool(Config.GEMINI_API_KEY),
             "youtube_key_set": bool(Config.YOUTUBE_API_KEY),
             "apify_token_set": bool(Config.APIFY_API_TOKEN),
+            "tiktok_profiles_count": len(Config.TIKTOK_PROFILES),
             "use_local_db": Config.USE_LOCAL_DB
         },
-        "description": "YouTube & Instagram Moderasyon ve Siber Delil Takip Sistemi",
-        "version": "v0.0.4"
+        "description": "YouTube, Instagram & TikTok Moderasyon ve Siber Delil Takip Sistemi",
+        "version": "v0.0.5"
     }), 200
 
 @app.route("/cron", methods=["GET", "POST"])
