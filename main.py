@@ -10,7 +10,7 @@ from instagram_client import InstagramClient
 from moderator import CommentModerator
 from notifier import Notifier
 
-def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
+def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) -> Dict[str, Any]:
     """
     Tek bir tarama döngüsünü çalıştırır:
     - YouTube ve Instagram'daki son içeriklerin yeni yorumlarını tarar.
@@ -150,9 +150,11 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     links_block = "\n".join(links_lines)
     links_section = f"\n\n🔗 <b>Kontrol Edilen İçerik Linkleri:</b>\n{links_block}" if links_block else ""
 
+    dest_chat = target_chat_id or Config.TELEGRAM_CHAT_ID
+
     if not new_comments:
         print("✅ İncelenecek YENİ yorum bulunamadı.")
-        if is_manual and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
+        if is_manual and Config.TELEGRAM_BOT_TOKEN and dest_chat:
             msg = (
                 "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
                 f"{sources_text}\n\n"
@@ -162,10 +164,18 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
                 f"{links_section}\n\n"
                 "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit tespit edilmedi."
             )
-            requests.post(
-                f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
-                json={"chat_id": Config.TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"}
-            )
+            try:
+                tg_res = requests.post(
+                    f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                    json={"chat_id": dest_chat, "text": msg, "parse_mode": "HTML"},
+                    timeout=15
+                )
+                if tg_res.status_code == 200:
+                    print(f"[Telegram] Rapor başarıyla iletildi ({dest_chat}).")
+                else:
+                    print(f"[Telegram Rapor HATA]: {tg_res.status_code} - {tg_res.text}")
+            except Exception as e:
+                print(f"[Telegram Gönderim Hatası]: {e}")
         return {"status": "success", "new_comments_count": 0, "offensive_count": 0}
 
     print(f"🔍 İncelenecek YENİ yorum sayısı: {len(new_comments)}")
@@ -185,7 +195,12 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
     storage.mark_as_processed(new_ids)
     print(f"💾 {len(new_ids)} adet yeni yorum işlendi olarak kaydedildi.")
 
-    if is_manual and offensive_count == 0 and Config.TELEGRAM_BOT_TOKEN and Config.TELEGRAM_CHAT_ID:
+    if is_manual and dest_chat and Config.TELEGRAM_BOT_TOKEN:
+        status_line = (
+            "✨ <b>Tüm yorumlar temiz!</b> Yeni bir hakaret veya tehdit tespit edilmedi."
+            if offensive_count == 0 else
+            f"🚨 <b>{offensive_count} adet hakaret/tehdit tespit edildi</b> ve delil kartları iletildi."
+        )
         msg = (
             "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
             f"{sources_text}\n\n"
@@ -193,12 +208,20 @@ def run_moderation_cycle(is_manual: bool = False) -> Dict[str, Any]:
             f"• YouTube: {yt_comments_count} yorum\n"
             f"• Instagram: {ig_comments_count} yorum"
             f"{links_section}\n\n"
-            "✨ <b>Tüm yorumlar temiz!</b> Yeni bir hakaret veya tehdit tespit edilmedi."
+            f"{status_line}"
         )
-        requests.post(
-            f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
-            json={"chat_id": Config.TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"}
-        )
+        try:
+            tg_res = requests.post(
+                f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                json={"chat_id": dest_chat, "text": msg, "parse_mode": "HTML"},
+                timeout=15
+            )
+            if tg_res.status_code == 200:
+                print(f"[Telegram] Rapor başarıyla iletildi ({dest_chat}).")
+            else:
+                print(f"[Telegram Rapor HATA]: {tg_res.status_code} - {tg_res.text}")
+        except Exception as e:
+            print(f"[Telegram Gönderim Hatası]: {e}")
 
     summary = {
         "status": "success",

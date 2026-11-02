@@ -81,8 +81,7 @@ Format:
                     contents=prompt,
                     config={
                         "system_instruction": system_instruction,
-                        "response_mime_type": "application/json",
-                        "http_options": {"timeout": 20000}
+                        "response_mime_type": "application/json"
                     }
                 )
 
