@@ -1,4 +1,5 @@
 import os
+import html
 from datetime import datetime
 from typing import Dict, Any
 
@@ -37,11 +38,27 @@ class EvidenceGenerator:
         
         detection_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
+        # HTML Güvenlik Kaçışları (XSS ve enjeksiyon koruması)
+        safe_author_name = html.escape(str(author_name))
+        safe_author_img = html.escape(str(author_img), quote=True)
+        safe_author_id = html.escape(str(author_channel_id))
+        safe_author_url = html.escape(str(author_channel_url), quote=True)
+        safe_channel_name = html.escape(str(channel_name))
+        safe_video_title = html.escape(str(video_title))
+        safe_video_url = html.escape(str(video_url), quote=True)
+        safe_comment_url = html.escape(str(comment_url), quote=True)
+        safe_text = html.escape(str(text))
+        safe_category = html.escape(str(category))
+        safe_severity = html.escape(str(severity))
+        safe_explanation = html.escape(str(explanation))
+        safe_published_at = html.escape(str(published_at))
+        safe_platform = html.escape(str(platform))
+
         html_content = f"""<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>Dijital Delil Tespit Tutanağı ({platform}) - {author_name}</title>
+  <title>Dijital Delil Tespit Tutanağı ({safe_platform}) - {safe_author_name}</title>
   <style>
     body {{
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -161,41 +178,41 @@ class EvidenceGenerator:
   <div class="container">
     <div class="header">
       <h1>🦅 Bateleur - Dijital Delil Tespit Tutanağı</h1>
-      <span class="badge">HUKUKİ DELİL ({platform.upper()}) / {severity}</span>
+      <span class="badge">HUKUKİ DELİL ({safe_platform.upper()}) / {safe_severity}</span>
     </div>
 
     <div class="section-title">Şüpheli / Hesap Bilgileri</div>
     <div class="profile-card">
-      <img src="{author_img}" alt="Profil Fotoğrafı" class="avatar" onerror="this.src='https://dummyimage.com/70x70/cbd5e1/475569.png&text=YOK'">
+      <img src="{safe_author_img}" alt="Profil Fotoğrafı" class="avatar" onerror="this.src='https://dummyimage.com/70x70/cbd5e1/475569.png&text=YOK'">
       <div class="profile-info">
-        <div><strong>Kullanıcı Adı:</strong> {author_name}</div>
-        <div><strong>{id_label}:</strong> <code>{author_channel_id}</code></div>
-        <div><strong>Profil Bağlantısı:</strong> <a href="{author_channel_url}" target="_blank">{author_channel_url}</a></div>
+        <div><strong>Kullanıcı Adı:</strong> {safe_author_name}</div>
+        <div><strong>{id_label}:</strong> <code>{safe_author_id}</code></div>
+        <div><strong>Profil Bağlantısı:</strong> <a href="{safe_author_url}" target="_blank">{safe_author_url}</a></div>
       </div>
     </div>
 
     <div class="section-title">İlgili Hakaret İçerikli Yorum</div>
     <div class="comment-box">
-      "{text}"
+      "{safe_text}"
     </div>
 
     <div class="section-title">Teknik ve Hukuki Detaylar</div>
     <table class="meta-table">
       <tr>
         <td>{target_label}</td>
-        <td><strong>{channel_name}</strong></td>
+        <td><strong>{safe_channel_name}</strong></td>
       </tr>
       <tr>
         <td>{content_label}</td>
-        <td><a href="{video_url}" target="_blank">{video_title}</a></td>
+        <td><a href="{safe_video_url}" target="_blank">{safe_video_title}</a></td>
       </tr>
       <tr>
         <td>Yorum / İçerik URL</td>
-        <td><a href="{comment_url}" target="_blank">{comment_url}</a></td>
+        <td><a href="{safe_comment_url}" target="_blank">{safe_comment_url}</a></td>
       </tr>
       <tr>
         <td>Yorum Paylaşım Tarihi</td>
-        <td>{published_at} (UTC)</td>
+        <td>{safe_published_at} (UTC)</td>
       </tr>
       <tr>
         <td>Tespit ve Kayıt Tarihi</td>
@@ -203,7 +220,7 @@ class EvidenceGenerator:
       </tr>
       <tr>
         <td>Hukuki Sınıflandırma</td>
-        <td><strong>{category}</strong> ({explanation})</td>
+        <td><strong>{safe_category}</strong> ({safe_explanation})</td>
       </tr>
     </table>
 

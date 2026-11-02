@@ -73,7 +73,8 @@ Format:
 """
 
         # Önce primary model, hata verirse fallback model ile dene
-        for model in [self.primary_model, self.fallback_model]:
+        models_to_try = [self.primary_model, self.fallback_model, "gemini-3.8-flash"]
+        for model in models_to_try:
             try:
                 response = self.client.models.generate_content(
                     model=model,
@@ -81,13 +82,21 @@ Format:
                     config={
                         "system_instruction": system_instruction,
                         "response_mime_type": "application/json",
-                        "http_options": {"timeout": 15000}
+                        "http_options": {"timeout": 20000}
                     }
                 )
 
                 raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
                 evaluations = json.loads(raw_text)
-                eval_map = {item["id"]: item for item in evaluations if "id" in item}
+                if isinstance(evaluations, dict):
+                    evaluations = evaluations.get("evaluations", [evaluations])
+                if not isinstance(evaluations, list):
+                    evaluations = [evaluations]
+
+                eval_map = {item["id"]: item for item in evaluations if isinstance(item, dict) and "id" in item}
 
                 chunk_results = []
                 for c in chunk:
@@ -102,7 +111,7 @@ Format:
                 return chunk_results
 
             except Exception as e:
-                print(f"[Gemini {model} Hatası]: {e}. Yedek modele geçiliyor...")
+                print(f"[Gemini {model} Hatası]: {e}. Sıradaki modele geçiliyor...")
                 time.sleep(1)
 
         # İki model de yanıt vermezse temiz işaretle

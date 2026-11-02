@@ -84,13 +84,31 @@ class Notifier:
             f"📁 <i>Delil Dosyası: {os.path.basename(html_file)}</i>"
         )
 
+        # Karakter sınırı kontrolü (Telegram sendPhoto caption sınırı 1024 karakterdir)
+        photo_caption = caption
+        if len(photo_caption) > 1020:
+            # Caption sığmazsa metni özetle
+            short_text = safe_text[:300] + "... (kalanı delil dosyasında)"
+            photo_caption = (
+                f"🚨 <b>HUKUKİ DELİL TESPİTİ ({platform.upper()})</b> (<code>{severity}</code>)\n\n"
+                f"{platform_icon} <b>{target_label}:</b> <code>{safe_channel}</code>\n"
+                f"🎬 <b>{content_label}:</b> {safe_video}...\n"
+                f"👤 <b>Şahıs:</b> <b>{safe_author}</b>\n"
+                f"🆔 <b>{id_label}:</b> <code>{safe_author_id}</code>\n\n"
+                f"💬 <b>Yorum:</b>\n<i>\"{short_text}\"</i>\n\n"
+                f"⚖️ <b>Hukuki Gerekçe:</b> <i>{safe_explanation}</i>\n\n"
+                f"👉 <a href=\"{comment_url}\">{action_label}</a>\n"
+                f"{drive_line}"
+                f"📁 <i>Delil Dosyası: {os.path.basename(html_file)}</i>"
+            )
+
         # Şahsın profil fotoğrafı varsa fotoğraflı bildirim gönder
         if author_img:
             photo_url = f"https://api.telegram.org/bot{self.bot_token}/sendPhoto"
             payload = {
                 "chat_id": self.chat_id,
                 "photo": author_img,
-                "caption": caption,
+                "caption": photo_caption[:1024],
                 "parse_mode": "HTML"
             }
             try:
@@ -107,7 +125,7 @@ class Notifier:
         msg_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": self.chat_id,
-            "text": caption,
+            "text": caption[:4090],
             "parse_mode": "HTML",
             "disable_web_page_preview": False
         }

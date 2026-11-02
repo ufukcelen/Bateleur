@@ -8,10 +8,12 @@ from main import run_moderation_cycle
 app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
+@app.route("/healthz", methods=["GET"])
 def health_check():
-    """Canlılık ve sağlık kontrolü."""
+    """Canlılık ve sağlık kontrolü (Render Health Check)."""
     return jsonify({
         "status": "online",
+        "healthy": True,
         "app": "Bateleur",
         "description": "YouTube & Instagram Moderasyon ve Siber Delil Takip Sistemi",
         "version": "v0.0.3"
@@ -34,7 +36,7 @@ def manual_check_endpoint():
     threading.Thread(target=run_moderation_cycle, kwargs={"is_manual": True}).start()
     return jsonify({"status": "accepted", "message": "Manuel tarama başlatıldı."}), 200
 
-@app.route("/webhook", methods=["POST"])
+@app.route("/webhook", methods=["GET", "POST"])
 def telegram_webhook():
     """
     Telegram Webhook Giriş Noktası.
@@ -42,6 +44,8 @@ def telegram_webhook():
     Telegram'ın 502/zaman aşımına uğramaması için hemen 200 döner,
     taramayı arka planda yürütür.
     """
+    if request.method == "GET":
+        return jsonify({"status": "ok", "message": "Telegram Webhook aktif ve hazır."}), 200
     try:
         data = request.get_json(silent=True) or {}
         is_manual = False

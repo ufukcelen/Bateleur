@@ -54,6 +54,9 @@ class YouTubeClient:
         """
         Kanalın en son yüklenen N adet içeriğini getirir.
         """
+        if not channel_id.startswith("UC"):
+            channel_id = self.resolve_channel_id(channel_id)
+
         ch_resp = self.youtube.channels().list(part="contentDetails", id=channel_id).execute()
         items = ch_resp.get("items", [])
         if not items:
