@@ -26,7 +26,7 @@ def health_check():
             "use_local_db": Config.USE_LOCAL_DB
         },
         "description": "YouTube, Instagram & TikTok Moderasyon ve Siber Delil Takip Sistemi",
-        "version": "v0.0.5"
+        "version": "v0.0.6"
     }), 200
 
 @app.route("/cron", methods=["GET", "POST"])
@@ -61,7 +61,7 @@ def _safe_run_scan(is_manual: bool, chat_id: Any = None):
 
     try:
         if is_manual and chat_id and Config.TELEGRAM_BOT_TOKEN:
-            ack_text = "⏳ <b>Tarama Başlatıldı...</b>\nYouTube ve Instagram hesapları taranıyor, lütfen bekleyin (yaklaşık 30-40 sn)..."
+            ack_text = "⏳ <b>Tarama Başlatıldı...</b>\nYouTube, Instagram ve TikTok hesapları taranıyor, lütfen bekleyin (yaklaşık 30-40 sn)..."
             try:
                 requests.post(
                     f"https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendMessage",

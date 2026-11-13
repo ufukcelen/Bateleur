@@ -43,3 +43,7 @@ class Config:
     TIKTOK_PROFILES: List[str] = [p.strip().lstrip("@/").strip() for p in _raw_tt_profiles.split(",") if p.strip()]
     RECENT_TIKTOK_POSTS_COUNT: int = int(os.getenv("RECENT_TIKTOK_POSTS_COUNT", "3"))
     MAX_COMMENTS_PER_TIKTOK_POST: int = int(os.getenv("MAX_COMMENTS_PER_TIKTOK_POST", "30"))
+
+    # Günlük Durum Bildirimi (Heartbeat) - En az günde 1 kez telegrama durum bildirir
+    DAILY_HEARTBEAT_ENABLED: bool = os.getenv("DAILY_HEARTBEAT_ENABLED", "true").lower() in ("true", "1", "yes")
+    DAILY_HEARTBEAT_HOURS: int = int(os.getenv("DAILY_HEARTBEAT_HOURS", "24"))

@@ -1,4 +1,7 @@
+import os
 import sys
+import json
+import time
 import html
 import requests
 from typing import Dict, Any
@@ -10,6 +13,32 @@ from instagram_client import InstagramClient
 from tiktok_client import TikTokClient
 from moderator import CommentModerator
 from notifier import Notifier
+
+HEARTBEAT_FILE = "last_heartbeat.json"
+
+def should_send_heartbeat() -> bool:
+    """Otomatik devriyede belirlenen süre (varsayılan 24 saat) dolduysa True döner."""
+    if not getattr(Config, "DAILY_HEARTBEAT_ENABLED", True):
+        return False
+    now = time.time()
+    try:
+        if os.path.exists(HEARTBEAT_FILE):
+            with open(HEARTBEAT_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                last_time = data.get("timestamp", 0)
+                hours = getattr(Config, "DAILY_HEARTBEAT_HOURS", 24)
+                return (now - last_time) >= (hours * 3600)
+        return True
+    except Exception:
+        return True
+
+def record_heartbeat():
+    """Son durum bildirim zamanını kaydeder."""
+    try:
+        with open(HEARTBEAT_FILE, "w", encoding="utf-8") as f:
+            json.dump({"timestamp": time.time(), "datetime": time.strftime("%Y-%m-%d %H:%M:%S")}, f)
+    except Exception as e:
+        print(f"[Heartbeat Kayıt Hatası]: {e}")
 
 def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) -> Dict[str, Any]:
     """
@@ -136,27 +165,36 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
         except Exception:
             return ""
 
-    # Aynı URL'lerin mükerrer listelenmesini önle
-    seen_urls = set()
+    # Aynı URL ve başlıkların mükerrer listelenmesini önle
+    seen_keys = set()
     unique_yt = []
     for v in scanned_yt:
-        u = v.get("url", "")
-        if u and u not in seen_urls:
-            seen_urls.add(u)
+        u = v.get("url", "").strip()
+        t = v.get("title", "").strip().lower()
+        key = (u, t)
+        if u and key not in seen_keys:
+            seen_keys.add(key)
+            seen_keys.add(u)
             unique_yt.append(v)
 
     unique_ig = []
     for p in scanned_ig:
-        u = p.get("url", "")
-        if u and u not in seen_urls:
-            seen_urls.add(u)
+        u = p.get("url", "").strip()
+        t = p.get("title", "").strip().lower()
+        key = (u, t)
+        if u and key not in seen_keys:
+            seen_keys.add(key)
+            seen_keys.add(u)
             unique_ig.append(p)
 
     unique_tt = []
     for v in scanned_tt:
-        u = v.get("url", "")
-        if u and u not in seen_urls:
-            seen_urls.add(u)
+        u = v.get("url", "").strip()
+        t = v.get("title", "").strip().lower()
+        key = (u, t)
+        if u and key not in seen_keys:
+            seen_keys.add(key)
+            seen_keys.add(u)
             unique_tt.append(v)
 
     # Kontrol edilen içeriklerin tıklanabilir link listesi
@@ -193,22 +231,26 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
     links_section = f"\n\n🔗 <b>Kontrol Edilen İçerik Linkleri:</b>\n{links_block}" if links_block else ""
 
     dest_chat = target_chat_id or Config.TELEGRAM_CHAT_ID
+    is_heartbeat_due = (not is_manual) and should_send_heartbeat()
+    should_send_summary = (is_manual or is_heartbeat_due) and bool(Config.TELEGRAM_BOT_TOKEN and dest_chat)
+
+    counts_summary = [f"• YouTube: {yt_comments_count} yorum kontrol edildi", f"• Instagram: {ig_comments_count} yorum kontrol edildi"]
+    if Config.TIKTOK_PROFILES:
+        counts_summary.append(f"• TikTok: {tt_comments_count} yorum kontrol edildi")
+    counts_text = "\n".join(counts_summary)
 
     if not new_comments:
         print("✅ İncelenecek YENİ yorum bulunamadı.")
-        if is_manual and Config.TELEGRAM_BOT_TOKEN and dest_chat:
-            counts_summary = [f"• YouTube: {yt_comments_count} yorum kontrol edildi", f"• Instagram: {ig_comments_count} yorum kontrol edildi"]
-            if Config.TIKTOK_PROFILES:
-                counts_summary.append(f"• TikTok: {tt_comments_count} yorum kontrol edildi")
-            counts_text = "\n".join(counts_summary)
-
+        if should_send_summary:
+            title_tag = "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>" if is_manual else "🦅 <b>Bateleur Günlük Devriye Raporu</b>"
+            status_desc = "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit tespit edilmedi." if is_manual else "✨ <b>Sistem Devriyede:</b> Yeni bir hakaret veya tehdit tespit edilmedi. Tüm kanallar aktif olarak korunuyor."
             msg = (
-                "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
+                f"{title_tag}\n\n"
                 f"{sources_text}\n\n"
                 f"📊 <b>İncelenen Yorum Sayıları:</b>\n"
                 f"{counts_text}"
                 f"{links_section}\n\n"
-                "✨ <b>Tüm yorumlar temiz.</b> Yeni bir hakaret veya tehdit tespit edilmedi."
+                f"{status_desc}"
             )
             try:
                 tg_res = requests.post(
@@ -218,6 +260,7 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
                 )
                 if tg_res.status_code == 200:
                     print(f"[Telegram] Rapor başarıyla iletildi ({dest_chat}).")
+                    record_heartbeat()
                 else:
                     print(f"[Telegram Rapor HATA]: {tg_res.status_code} - {tg_res.text}")
             except Exception as e:
@@ -241,19 +284,15 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
     storage.mark_as_processed(new_ids)
     print(f"💾 {len(new_ids)} adet yeni yorum işlendi olarak kaydedildi.")
 
-    if is_manual and dest_chat and Config.TELEGRAM_BOT_TOKEN:
+    if should_send_summary:
+        title_tag = "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>" if is_manual else "🦅 <b>Bateleur Günlük Devriye Raporu</b>"
         status_line = (
             "✨ <b>Tüm yorumlar temiz!</b> Yeni bir hakaret veya tehdit tespit edilmedi."
             if offensive_count == 0 else
             f"🚨 <b>{offensive_count} adet hakaret/tehdit tespit edildi</b> ve delil kartları iletildi."
         )
-        counts_summary = [f"• YouTube: {yt_comments_count} yorum", f"• Instagram: {ig_comments_count} yorum"]
-        if Config.TIKTOK_PROFILES:
-            counts_summary.append(f"• TikTok: {tt_comments_count} yorum")
-        counts_text = "\n".join(counts_summary)
-
         msg = (
-            "✅ <b>Bateleur Taraması Tamamlandı (Manuel)</b>\n\n"
+            f"{title_tag}\n\n"
             f"{sources_text}\n\n"
             f"🔍 <b>{len(new_comments)}</b> yeni yorum Gemini AI ile analiz edildi.\n"
             f"{counts_text}"
@@ -268,6 +307,7 @@ def run_moderation_cycle(is_manual: bool = False, target_chat_id: Any = None) ->
             )
             if tg_res.status_code == 200:
                 print(f"[Telegram] Rapor başarıyla iletildi ({dest_chat}).")
+                record_heartbeat()
             else:
                 print(f"[Telegram Rapor HATA]: {tg_res.status_code} - {tg_res.text}")
         except Exception as e:

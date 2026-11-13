@@ -11,12 +11,12 @@ class CommentModerator:
 
         from google import genai
         self.client = genai.Client(api_key=self.api_key)
-        self.primary_model = "gemini-3.5-flash"
-        self.fallback_model = "gemini-3.5-flash-lite"
+        self.primary_model = "gemini-3.5-flash-lite"
+        self.fallback_model = "gemini-3.1-flash-lite"
 
-    def analyze_comments(self, comments: List[Dict[str, Any]], batch_size: int = 10) -> List[Dict[str, Any]]:
+    def analyze_comments(self, comments: List[Dict[str, Any]], batch_size: int = 20) -> List[Dict[str, Any]]:
         """
-        Gelen yorum listesini 10'arlı paketler halinde Gemini ile analiz eder.
+        Gelen yorum listesini 20'şerli paketler halinde Gemini ile analiz eder.
         """
         if not comments:
             return []
@@ -27,6 +27,8 @@ class CommentModerator:
             print(f"[Gemini] {i+1}-{i+len(chunk)} arasındaki yorumlar analiz ediliyor...")
             chunk_results = self._analyze_chunk(chunk)
             all_results.extend(chunk_results)
+            if i + batch_size < len(comments):
+                time.sleep(1.2)  # Rate limit (RPM) koruması
 
         return all_results
 
@@ -73,7 +75,7 @@ Format:
 """
 
         # Önce primary model, hata verirse fallback model ile dene
-        models_to_try = [self.primary_model, self.fallback_model, "gemini-3.8-flash"]
+        models_to_try = [self.primary_model, self.fallback_model, "gemini-3.5-flash"]
         for model in models_to_try:
             try:
                 response = self.client.models.generate_content(
